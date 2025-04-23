@@ -1,0 +1,87 @@
+package com.example.bomberman.Map;
+
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import com.example.bomberman.graphics.Sprite;
+
+public class Map {
+    private MapData mapData;
+
+    public Map(MapData mapData) {
+        this.mapData = mapData;
+    }
+
+    public void render(GraphicsContext gc) {
+        int rows = mapData.getRows();
+        int cols = mapData.getCols();
+        char[][] map = mapData.getMap();
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                char ch = map[i][j];
+                double px = j * Sprite.SCALED_SIZE;
+                double py = i * Sprite.SCALED_SIZE;
+
+                switch (ch) {
+                    case '#': gc.drawImage(Sprite.wall.getFxImage(), px, py); break;
+                    case '*': gc.drawImage(Sprite.brick.getFxImage(), px, py); break;
+                    case 'x': gc.drawImage(Sprite.portal.getFxImage(), px, py); break;
+                    case 'p': gc.drawImage(Sprite.player_down.getFxImage(), px, py); break;
+                    case '1': gc.drawImage(Sprite.balloom_left1.getFxImage(), px, py); break;
+                    case '2': gc.drawImage(Sprite.oneal_left1.getFxImage(), px, py); break;
+                    case '3': doll
+                    case '4': ghost
+                    case '5': Kondoria
+                    case '6': minvo
+
+
+                    case 'b': gc.drawImage(Sprite.powerupBombs.getFxImage(), px, py); break;
+                    case 'f': gc.drawImage(Sprite.powerupFlames.getFxImage(), px, py); break;
+                    case 's': gc.drawImage(Sprite.powerupSpeed.getFxImage(), px, py); break;
+                    case 'l': gc.drawImage(Sprite.powerupFlamepass.getFxImage(), px, py); break;
+                    case ' ': default: gc.drawImage(Sprite.grass.getFxImage(), px, py); break;
+                }
+            }
+        }
+
+        gc.setFill(Color.WHITE);
+        gc.setFont(Font.font("Arial", 20));
+        gc.fillText("LEVEL: " + mapData.getLevel() + " (" + rows + "x" + cols + ")", 10, 20);
+    }
+}
+
+ case PLAYER:
+                this.sprite=Sprite.player_down;
+                break;
+            case ONEAL:
+                this.sprite=Sprite.oneal_left1;
+                break;
+            case BALLOM:
+                this.sprite=Sprite.balloom_left1;
+                break;
+            case DOLL:
+                this.sprite=Sprite.doll_left1;
+                break;
+            case GHOST:
+                this.sprite=Sprite.ghost_left1;
+                break;
+            case KONDORIA:
+                this.sprite=Sprite.kondoria_left1;
+                break;
+            case MINVO:
+                this.sprite=Sprite.minvo_left1;
+                break;
+
+            case POWERUPBOMB:
+                this.sprite=Sprite.powerupBombs;
+                break;
+            case POWERUPSPEED:
+                this.sprite=Sprite.powerupSpeed;
+                break;
+            case POWERUPFLAMES:
+                this.sprite=Sprite.powerupFlames;
+                break;
+            case POWERUPFLAMEPASS:
+                this.sprite=Sprite.powerupFlamepass;
+                break;
