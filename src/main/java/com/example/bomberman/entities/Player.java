@@ -10,6 +10,7 @@ import javafx.scene.image.Image;
 
 import java.util.HashSet;
 import java.util.Set;
+import com.example.bomberman.Bomberman; // Import lớp Bomberman (hoặc GameStateManager)
 
 public class Player {
 
@@ -25,6 +26,9 @@ public class Player {
 
     private Map map;
 
+    // --- Tham chiếu đến lớp quản lý game (Bomberman hoặc GameStateManager) ---
+    private Bomberman gameManager; // Giữ tham chiếu đến Bomberman
+
     // --- Animation attributes ---
     private Animation walkUpAnimation;
     private Animation walkDownAnimation;
@@ -38,19 +42,20 @@ public class Player {
     private double animationTimer = 0;
     private Direction lastNonNoneDirection = Direction.DOWN;
 
-    // TODO: Bomb attributes
-    public int bombNumber = 1;
-    private int flameLength = 1;
+    // --- Bomb attributes ---
+    public int bombNumber = 1; // Số lượng bom có thể đặt cùng lúc
+    private int flameLength = 1; // Bán kính nổ của bom
     // TODO: Other state attributes
 
-    // Constructor
-    public Player(int startGridX, int startGridY, Map map) {
+    // --- CONSTRUCTOR ĐÃ SỬA ĐỔI: Nhận thêm tham chiếu đến Bomberman ---
+    public Player(int startGridX, int startGridY, Map map, Bomberman gameManager) {
         this.gridX = startGridX;
         this.gridY = startGridY;
-        this.pixelX = gridX * Sprite.SCALED_SIZE;
-        this.pixelY = gridY * Sprite.SCALED_SIZE;
+        this.pixelX = startGridX * Sprite.SCALED_SIZE;
+        this.pixelY = startGridY * Sprite.SCALED_SIZE;
 
         this.map = map;
+        this.gameManager = gameManager; // Lưu tham chiếu
 
         // --- Initialize animations ---
         double frameDuration = 0.15; // Điều chỉnh giá trị này
@@ -93,9 +98,43 @@ public class Player {
         }
     }
 
+    // Phương thức được gọi bởi InputHandler khi nhấn phím đặt bom
     public void placeBomb() {
-        // TODO: Bomb placement logic
-        System.out.println("Player requested to place a bomb at (" + gridX + ", " + gridY + ")");
+        // TODO: Kiểm tra xem ô hiện tại đã có bom chưa (tránh đặt chồng lên bom khác)
+        // Cần truy cập danh sách bom từ gameManager để kiểm tra
+        boolean isBombAtCurrentLocation = false;
+        // if (gameManager != null && gameManager.isBombAtGrid(gridX, gridY)) { // Cần thêm phương thức isBombAtGrid vào Bomberman
+        //    isBombAtCurrentLocation = true;
+        // }
+
+
+        // Kiểm tra xem có đủ số bom cho phép không VÀ ô hiện tại chưa có bom
+        if (bombNumber > 0 && !isBombAtCurrentLocation) {
+            // Xác định vị trí lưới chính xác để đặt bom (làm tròn vị trí pixel)
+            int bombGridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
+            int bombGridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
+
+            // Tạo một đối tượng Bomb mới
+            // Truyền 'this' (tham chiếu đến Player này) làm owner
+            Bomb newBomb = new Bomb(bombGridX, bombGridY, flameLength, this, map);
+
+            // --- Thêm bom vào danh sách quản lý bom của game ---
+            // Gọi phương thức addBomb của Bomberman (gameManager)
+            if (gameManager != null) { // Kiểm tra gameManager không null
+                gameManager.addBomb(newBomb);
+            } else {
+                System.err.println("Error: gameManager is null in Player!");
+            }
+
+
+            // Giảm số lượng bom mà Player có thể đặt
+            bombNumber--;
+
+            System.out.println("Player placed a bomb at (" + bombGridX + ", " + bombGridY + "). Bombs left: " + bombNumber); // Log
+            // TODO: Phát âm thanh đặt bom
+        } else {
+            // System.out.println("Cannot place bomb. Bombs left: " + bombNumber + ", Bomb at location: " + isBombAtCurrentLocation); // Debug log nếu không đặt được
+        }
     }
 
     // --- Called by Game Loop (AnimationTimer) ---
@@ -177,7 +216,7 @@ public class Player {
         double playerSize = Sprite.SCALED_SIZE;
         // --- TINH CHỈNH GIÁ TRỊ BUFFER NÀY ---
         // Thử giảm giá trị này nếu nhân vật bị trễ khi bắt đầu di chuyển
-        double buffer = 0.1; // Thử 2.0, 1.0, 0.5, 0.1
+        double buffer = 6.0; // Thử 2.0, 1.0, 0.5, 0.1
 
         // Tính toán tọa độ pixel của 4 góc hộp va chạm Player tại vị trí checkPixelX, checkPixelY
         // Các điểm này cần nằm bên trong hộp va chạm Player
@@ -238,6 +277,13 @@ public class Player {
 
         // If all checked tiles are walkable, no collision detected
         return false; // No collision
+    }
+
+    // --- Phương thức mới để tăng số bom sau khi bom nổ ---
+    // Phương thức này sẽ được gọi từ Bomberman khi bom nổ
+    public void increaseBombCount() {
+        bombNumber++;
+        System.out.println("Bomb count increased. Current bombs: " + bombNumber); // Log
     }
 
 

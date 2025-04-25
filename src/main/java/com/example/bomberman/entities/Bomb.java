@@ -1,10 +1,15 @@
-package com.example.bomberman.entities; // Đặt trong package entities
+package com.example.bomberman.entities;
 
-import com.example.bomberman.Map.Map; // Cần import lớp Map cho logic nổ sau này
-import com.example.bomberman.graphics.Sprite; // Cần import lớp Sprite
+import com.example.bomberman.Map.Map; // Cần import lớp Map
+import com.example.bomberman.Map.Tile; // Cần import lớp Tile
+import com.example.bomberman.Map.TileType; // Cần import lớp TileType
+import com.example.bomberman.graphics.Sprite; // Cần import Sprite
 import com.example.bomberman.graphics.Animation; // Cần import lớp Animation
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image; // Cần Image để vẽ
+
+import java.util.ArrayList; // Cần ArrayList
+import java.util.List; // Cần List
 
 // Lớp đại diện cho một quả bom
 public class Bomb {
@@ -37,6 +42,10 @@ public class Bomb {
 
     // Tham chiếu đến đối tượng Map (cần cho logic nổ để kiểm tra Tile)
     private Map map;
+
+    // --- Danh sách các đối tượng Flame được tạo ra bởi vụ nổ này ---
+    private List<Flame> generatedFlames = new ArrayList<>();
+
 
     // Constructor
     public Bomb(int startGridX, int startGridY, int flameLength, Player owner, Map map) {
@@ -97,19 +106,83 @@ public class Bomb {
     // Phương thức được gọi khi bom nổ
     private void explode() {
         exploded = true;
+        active = false; // Đặt active = false ngay khi nổ để Bomberman có thể xử lý
+
         // TODO: Chuyển sang animation nổ nếu có
         // currentAnimation = explosionAnimation;
         // animationTimer = 0; // Reset timer cho animation nổ
 
-        // TODO: Logic tạo các đối tượng Flame lan tỏa ra các hướng
-        // Cần truy cập Map để kiểm tra các Tile trên đường lan tỏa (Wall, Brick)
-        // Cần truy cập danh sách các thực thể khác (Player, Enemy, Bomb, Item) để kiểm tra va chạm
-        System.out.println("Bomb at (" + gridX + ", " + gridY + ") exploded!"); // Log tạm thời
+        System.out.println("Bomb at (" + gridX + ", " + gridY + ") exploded! Flame length: " + flameLength); // Log tạm thời
 
         // TODO: Phát âm thanh nổ bom
 
+        // --- Logic tạo các đối tượng Flame lan tỏa ra các hướng ---
+
+        // Tạo Flame ở tâm vụ nổ (vị trí của bom)
+        generatedFlames.add(new Flame(gridX, gridY, 0)); // flameType 0 = center
+
+        // Các hướng lan tỏa: Lên, Xuống, Trái, Phải
+        int[] dx = {0, 0, -1, 1}; // Thay đổi cột (X) cho Trái, Phải
+        int[] dy = {-1, 1, 0, 0}; // Thay đổi hàng (Y) cho Lên, Xuống
+        int[] flameTypes = {5, 6, 3, 4}; // Loại ngọn lửa cuối cho mỗi hướng (Up, Down, Left, Right)
+        int[] middleFlameTypes = {2, 2, 1, 1}; // Loại ngọn lửa giữa cho mỗi hướng (Up, Down, Left, Right)
+
+
+        for (int i = 0; i < 4; i++) { // Duyệt qua 4 hướng
+            int currentDx = dx[i];
+            int currentDy = dy[i];
+            int endType = flameTypes[i];
+            int middleType = middleFlameTypes[i];
+
+            for (int l = 1; l <= flameLength; l++) { // Lan tỏa theo chiều dài ngọn lửa
+                int nextGridX = gridX + currentDx * l;
+                int nextGridY = gridY + currentDy * l;
+
+                // Kiểm tra biên bản đồ
+                if (nextGridX < 0 || nextGridX >= map.getCols() || nextGridY < 0 || nextGridY >= map.getRows()) {
+                    break; // Dừng lan tỏa nếu ra ngoài biên bản đồ
+                }
+
+                Tile tile = map.getTile(nextGridX, nextGridY);
+
+                // Nếu gặp Tường (#), dừng lan tỏa theo hướng này
+                if (tile != null && tile.getType() == TileType.WALL) {
+                    break;
+                }
+
+                // Xác định loại ngọn lửa (giữa hay cuối)
+                int currentFlameType = middleType;
+                // Nếu là đoạn cuối cùng hoặc gặp Gạch, đây là ngọn lửa cuối
+                if (l == flameLength || (tile != null && tile.getType() == TileType.BRICK)) {
+                    currentFlameType = endType;
+                }
+
+                // --- Tạo đối tượng Flame tại vị trí này ---
+                generatedFlames.add(new Flame(nextGridX, nextGridY, currentFlameType));
+
+
+                // --- Sửa lỗi: Gọi map.brickHitByFlame() thay vì map.setTile() ---
+                // Nếu gặp Gạch (*), thông báo cho Map biết gạch đã bị ngọn lửa chạm vào
+                if (tile != null && tile.getType() == TileType.BRICK) {
+                    map.brickHitByFlame(nextGridX, nextGridY); // Gọi phương thức mới trong Map
+                    // TODO: Có thể cần tạo animation gạch vỡ (nếu có) - Logic này sẽ nằm trong Bomberman
+                    break; // Dừng lan tỏa sau khi gặp gạch
+                }
+
+                // Nếu gặp Portal (x), tạo ngọn lửa nhưng vẫn tiếp tục lan tỏa
+                // if (tile != null && tile.getType() == TileType.PORTAL) {
+                //    // Tạo Flame tại vị trí Portal
+                //    generatedFlames.add(new Flame(nextGridX, nextGridY, currentFlameType)); // Portal có thể cần sprite Flame riêng?
+                //    // Vẫn tiếp tục lan tỏa qua Portal
+                // }
+
+                // Nếu gặp Item (b, f, s, l), tạo ngọn lửa và vẫn tiếp tục lan tỏa
+                // Logic này sẽ được xử lý khi Bomberman duyệt qua danh sách Item và kiểm tra va chạm với Flame
+            }
+        }
+
         // Sau khi tạo Flame, bom gốc (đối tượng Bomb này) sẽ biến mất sau khi animation nổ kết thúc
-        // active = false; // Điều này sẽ được xử lý sau khi animation nổ kết thúc
+        // active = false; // Điều này đã được thực hiện ở đầu phương thức explode()
     }
 
     // Phương thức được gọi bởi Vòng lặp Game để vẽ Bom
@@ -143,21 +216,27 @@ public class Bomb {
             gc.drawImage(currentImage, pixelX, pixelY);
         }
 
-        // TODO: Logic vẽ các hiệu ứng khác của Bom (ví dụ: hiệu ứng nổ)
-        // Các đối tượng Flame sẽ được vẽ riêng sau này
+        // TODO: Logic vẽ các hiệu ứng khác của Bom (ví dụ: hiệu ứng nổ của bom gốc)
+        // Các đối tượng Flame sẽ được vẽ riêng sau này bởi Bomberman
     }
 
     // --- Getters ---
     public double getPixelX() { return pixelX; }
-    public double getPixelY() { return pixelY; }
+    public double getPixelY() { return pixelY; } // Phương thức getPixelY() đúng
+
     public int getGridX() { return gridX; }
     public int getGridY() { return gridY; }
     public boolean isExploded() { return exploded; }
     public boolean isActive() { return active; }
     public int getFlameLength() { return flameLength; }
     public Player getOwner() { return owner; }
-    // TODO: Getters cho các thuộc tính khác
 
-    // TODO: Setter để đặt active = false khi bom biến mất hoàn toàn
-    // public void setActive(boolean active) { this.active = active; }
+    // --- Getter mới để lấy danh sách Flame đã tạo ---
+    public List<Flame> getGeneratedFlames() {
+        return generatedFlames;
+    }
+
+    // Setter để đặt active = false khi bom biến mất hoàn toàn
+    // Phương thức này giờ được gọi trong explode()
+    public void setActive(boolean active) { this.active = active; }
 }

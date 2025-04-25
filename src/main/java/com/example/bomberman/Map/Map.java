@@ -3,91 +3,139 @@ package com.example.bomberman.Map;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import com.example.bomberman.graphics.Sprite; // Đảm bảo Sprite.java có thể truy cập
+import com.example.bomberman.graphics.Sprite;
+import com.example.bomberman.Bomberman; // Import lớp Bomberman
 
 public class Map {
     private MapData mapData;
-    private Tile[][] tileGrid; // Thêm mảng Tile
+    private Tile[][] tileGrid;
+    private Bomberman gameManager; // Thêm tham chiếu đến Bomberman
 
-    public Map(MapData mapData) {
+    // --- Constructor đã sửa đổi: Nhận thêm tham chiếu đến Bomberman ---
+    public Map(MapData mapData, Bomberman gameManager) {
         this.mapData = mapData;
-        initializeTiles(); // Khởi tạo mảng Tile
+        this.gameManager = gameManager; // Lưu tham chiếu
+        initializeTiles();
     }
 
     private void initializeTiles() {
         int rows = mapData.getRows();
         int cols = mapData.getCols();
-        char[][] charMap = mapData.getMap(); // Lấy mảng ký tự từ MapData [cite: 25]
+        char[][] charMap = mapData.getMap();
 
-        tileGrid = new Tile[rows][cols]; // Khởi tạo mảng Tile
+        tileGrid = new Tile[rows][cols];
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                char mapChar = charMap[i][j];
-                // Tạo đối tượng Tile từ ký tự và tọa độ lưới (j là X, i là Y)
-                tileGrid[i][j] = Tile.createTileFromChar(j, i, mapChar);
+                char mapChar = ' ';
 
-                // TODO: Xử lý các thực thể động (người chơi, quái vật, item) ở đây hoặc ở một lớp quản lý thực thể khác.
-                // Các ký tự 'p', '1', '2', 'b', 'f', 's', 'l' cho biết VỊ TRÍ ban đầu của thực thể đó.
-                // Bạn sẽ tạo các đối tượng Player, Enemy, Item TẠI VỊ TRÍ (j, i) này
-                // và thêm chúng vào các danh sách quản lý thực thể trong game state.
-                // Ô (Tile) tại vị trí đó vẫn sẽ là EMPTY.
+                // Thêm kiểm tra biên khi truy cập charMap
+                if (i < charMap.length && charMap[i] != null && j < charMap[i].length) {
+                    mapChar = charMap[i][j];
+                } else {
+                    System.err.println("Warning: Map data mismatch or unexpected data at row " + i + ", col " + j + ". Using default Grass tile.");
+                }
+
+                // Kiểm tra biên khi gán vào tileGrid (mặc dù vòng lặp đảm bảo)
+                if (i < tileGrid.length && tileGrid[i] != null && j < tileGrid[i].length) {
+                    // Sử dụng Tile.createTileFromChar để tạo Tile từ ký tự
+                    tileGrid[i][j] = Tile.createTileFromChar(j, i, mapChar);
+                } else {
+                    System.err.println("Severe Error: tileGrid initialization logic error at row " + i + ", col " + j + ".");
+                }
             }
         }
     }
 
     public Tile getTile(int gridX, int gridY) {
-        // Kiểm tra biên
+        // Kiểm tra biên khi truy cập bản đồ dựa trên kích thước khai báo
         if (gridX >= 0 && gridX < mapData.getCols() && gridY >= 0 && gridY < mapData.getRows()) {
-            return tileGrid[gridY][gridX]; // Truy cập mảng 2D theo [row][col] = [gridY][gridX]
+            // Kiểm tra biên khi truy cập mảng tileGrid thực tế
+            if (gridY >= 0 && gridY < tileGrid.length && tileGrid[gridY] != null && gridX >= 0 && gridX < tileGrid[gridY].length) {
+                return tileGrid[gridY][gridX]; // Truy cập mảng 2D theo [row][col] = [gridY][gridX]
+            } else {
+                System.err.println("Warning: tileGrid access out of bounds at grid (" + gridX + ", " + gridY + ") during getTile.");
+                return null; // Trả về null nếu ngoài biên tileGrid
+            }
         }
-        return null; // Trả về null nếu ngoài biên
+        return null; // Trả về null nếu ngoài biên bản đồ
     }
 
-    // Có thể cần setter nếu muốn thay thế hoàn toàn một ô
+    // --- Phương thức setTile đã sửa đổi để xử lý phá hủy gạch và tạo item ---
+    // Phương thức này giờ chỉ được gọi bởi Bomberman SAU KHI animation gạch vỡ kết thúc
     public void setTile(int gridX, int gridY, Tile newTile) {
+        // Kiểm tra biên khi gán vào bản đồ dựa trên kích thước khai báo
         if (gridX >= 0 && gridX < mapData.getCols() && gridY >= 0 && gridY < mapData.getRows()) {
-            tileGrid[gridY][gridX] = newTile;
+            // Lấy ô Tile hiện tại trước khi thay thế (sử dụng getTile đã có kiểm tra biên)
+            // Tile oldTile = getTile(gridX, gridY); // Không cần kiểm tra oldTile ở đây nữa
+
+            // Kiểm tra biên khi gán vào tileGrid thực tế
+            if (gridY >= 0 && gridY < tileGrid.length && tileGrid[gridY] != null && gridX >= 0 && gridX < tileGrid[gridY].length) {
+                tileGrid[gridY][gridX] = newTile; // Thay thế ô Tile
+
+                // --- Logic xử lý khi phá hủy gạch đã chuyển sang Bomberman ---
+                // Map chỉ chịu trách nhiệm thay đổi Tile khi được yêu cầu
+                // Logic tạo item ngẫu nhiên cũng nằm trong Bomberman
+            } else {
+                System.err.println("Warning: tileGrid set out of bounds at grid (" + gridX + ", " + gridY + ").");
+            }
+        }
+    }
+
+    // --- Phương thức mới để thông báo cho Bomberman khi một ô gạch bị ngọn lửa chạm vào ---
+    // Phương thức này sẽ được gọi từ Bomb.explode() khi ngọn lửa chạm gạch
+    public void brickHitByFlame(int gridX, int gridY) {
+        // Kiểm tra biên
+        if (gridX >= 0 && gridX < mapData.getCols() && gridY >= 0 && gridY < mapData.getRows()) {
+            Tile tile = getTile(gridX, gridY);
+            // Kiểm tra xem ô đó có phải là gạch không và chưa bị phá hủy
+            if (tile != null && tile.getType() == TileType.BRICK) {
+                System.out.println("Flame hit brick at (" + gridX + ", " + gridY + "). Notifying game manager."); // Log
+
+                // --- Thông báo cho Bomberman biết gạch đã bị phá hủy ---
+                // Bomberman sẽ tạo animation và sau đó mới gọi setTile
+                if (gameManager != null) {
+                    gameManager.brickDestroyed(gridX, gridY); // Gọi phương thức mới trong Bomberman
+                } else {
+                    System.err.println("Error: gameManager is null in Map.brickHitByFlame!");
+                }
+            }
         }
     }
 
 
     public void render(GraphicsContext gc) {
-        // Bắt đầu phương thức render
-
         int rows = mapData.getRows();
         int cols = mapData.getCols();
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                Tile currentTile = tileGrid[i][j]; // Lấy Tile từ mảng TileGrid
+                // Kiểm tra biên khi truy cập tileGrid để vẽ
+                if (i < tileGrid.length && tileGrid[i] != null && j < tileGrid[i].length) {
+                    Tile currentTile = tileGrid[i][j];
 
-                // Tính toán vị trí vẽ pixel từ tọa độ lưới của Tile
-                double px = currentTile.getGridX() * Sprite.SCALED_SIZE;
-                double py = currentTile.getGridY() * Sprite.SCALED_SIZE;
-
-                // Vẽ Sprite của Tile
-                if (currentTile.getSprite() != null) {
-                    gc.drawImage(currentTile.getSprite().getFxImage(), px, py);
+                    // Kiểm tra null trước khi lấy Sprite và vẽ
+                    if (currentTile != null && currentTile.getSprite() != null) {
+                        double px = currentTile.getGridX() * Sprite.SCALED_SIZE;
+                        double py = currentTile.getGridY() * Sprite.SCALED_SIZE;
+                        gc.drawImage(currentTile.getSprite().getFxImage(), px, py);
+                    } else if (currentTile != null && currentTile.getType() == TileType.EMPTY) {
+                        // Nếu là ô EMPTY nhưng không có sprite (có thể là lỗi),
+                        // có thể vẽ một màu nền tạm thời để debug
+                        // gc.setFill(Color.LIGHTGREEN);
+                        // gc.fillRect(j * Sprite.SCALED_SIZE, i * Sprite.SCALED_SIZE, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+                    }
+                } else {
+                    System.err.println("Warning: tileGrid access out of bounds at row " + i + ", col " + j + " during render.");
                 }
-
-                // TODO: Logic vẽ các thực thể (người chơi, quái vật, bom, lửa, item)
-                // Đảm bảo logic này nằm TRONG phương thức render
             }
         }
 
-        // --- Phần vẽ thông tin level ---
-        // Đảm bảo các dòng này nằm BÊN TRONG phương thức render
         gc.setFill(Color.WHITE);
         gc.setFont(Font.font("Arial", 20));
-        // Sử dụng mapData.getRows() và mapData.getCols() để lấy kích thước,
-        // hoặc có thể dùng trực tiếp rows và cols biến cục bộ như bạn đang làm.
         gc.fillText("LEVEL: " + mapData.getLevel() + " (" + rows + "x" + cols + ")", 10, 20);
-
-
     }
 
-    // Các phương thức khác của lớp Map...
     public int getRows() { return mapData.getRows(); }
     public int getCols() { return mapData.getCols(); }
     public int getLevel() { return mapData.getLevel(); }
