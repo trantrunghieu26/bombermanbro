@@ -67,7 +67,6 @@ public class Bomberman extends Application {
 
         primaryStage.setTitle("Bomberman Game");
         primaryStage.setResizable(false);
-
         loadLevel(currentLevel);
 
         // Kiểm tra canvas và player không null sau khi loadLevel
@@ -263,7 +262,7 @@ public class Bomberman extends Application {
             }
 
             // --- 4. Duyệt qua dữ liệu bản đồ và tạo thực thể động (Player, Enemies) ---
-            // KHÔNG tạo Item ở đây. Item sẽ được tạo sau khi Brick vỡ.
+            // KHÔNG tạ Item ở đây. Item sẽ được tạo sau khi Brick vỡ.
             char[][] charMap = mapData.getMap();
             for (int i = 0; i < mapData.getRows(); i++) {
                 for (int j = 0; j < mapData.getCols(); j++) {

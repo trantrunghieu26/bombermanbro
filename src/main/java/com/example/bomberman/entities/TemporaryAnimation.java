@@ -7,7 +7,7 @@ import javafx.scene.image.Image;
 
 // Lớp đại diện cho một hiệu ứng animation tạm thời tại một vị trí cụ thể
 // Ví dụ: animation gạch vỡ, animation quái vật chết...
-public class TemporaryAnimation {
+public class    TemporaryAnimation {
 
     private double pixelX;
     private double pixelY;

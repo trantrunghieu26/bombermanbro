@@ -32,7 +32,8 @@ public enum TileType {
             case 'b': // Powerup Bombs
             case 'f': // Powerup Flames
             case 's': // Powerup Speed
-            case 'l': // Powerup Flamepass
+            case 'l': // Powerup life
+            case 'a': // Powerup Kickbomb
                 return EMPTY; // Các thực thể này nằm trên ô trống
             default:
                 // Có thể ném ngoại lệ hoặc trả về một loại mặc định khác nếu gặp ký tự lạ
