@@ -7,6 +7,7 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
 import com.example.bomberman.Map.*;
@@ -15,13 +16,19 @@ import com.example.bomberman.graphics.Sprite;
 import com.example.bomberman.graphics.Animation; // Import lớp Animation
 
 import com.example.bomberman.Input.InputHandler;
-// TODO: Import các lớp Item khác khi bạn tạo chúng (FlameItem, SpeedItem, LifeItem)
+
 
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
 import java.util.Random;
+
+//Vẽ biểu thị điểm số mạng sống vvv
+import javafx.scene.paint.Color; // Import Color
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import java.util.concurrent.TimeUnit;
 
 
 public class Bomberman extends Application {
@@ -44,13 +51,21 @@ public class Bomberman extends Application {
     private java.util.Map<String, Character> hiddenItemsData;
 
 
+
+
     // --- Quản lý màn chơi ---
     private int currentLevel = 1;
     private final int MAX_LEVEL = 10;
+    //--- portal có thể di chuyển được hay không---
+    private boolean portalActivated = false; // Cờ cho biết Portal đã mở chưa
+    private int portalGridX = -1; // Lưu vị trí Portal X
+    private int portalGridY = -1;
 
-    // TODO: UI và Game State
-    // private int score = 0;
-    // private int lives = 3;
+    private int score = 0;
+    private int lives = 3;
+    public static final int UI_PANEL_HEIGHT = 32;
+    private static final double LEVEL_DURATION_SECONDS = 200.0;
+    private double levelTimeRemaining;
     // private GameState gameState = GameState.PLAYING; // Enum GameState (PLAYING, PAUSED, GAME_OVER, LEVEL_CLEARED)
 
     private InputHandler inputHandler;
@@ -60,6 +75,151 @@ public class Bomberman extends Application {
 
     private Random random = new Random();
 
+    // --- THÊM PHƯƠNG THỨC ĐỂ LẤY ĐIỂM ---
+    public int getScore() {
+        return score;
+    }
+
+    // --- THÊM PHƯƠNG THỨC ĐỂ TĂNG ĐIỂM ---
+    public void addScore(int points) {
+        if (points > 0) {
+            this.score += points;
+            System.out.println("Score increased by " + points + ". Total score: " + this.score); // Log (tùy chọn)
+        }
+    }
+
+    private void renderUI(GraphicsContext gc) {
+        if (gc == null || canvas == null) return;
+
+        // --- Lấy dữ liệu cần hiển thị ---
+        int currentLives = (player != null && player.isAlive()) ? player.getLives() : 0;
+        int currentScore = this.score;
+        int currentLevel = (gameMap != null) ? gameMap.getLevel() : 0;
+        int totalSecondsRemaining = (int) Math.ceil(levelTimeRemaining);
+
+        // --- Lấy kích thước Canvas ---
+        double canvasWidth = canvas.getWidth();
+        double canvasHeight = canvas.getHeight(); // Không dùng nhưng có thể cần sau này
+
+        // --- Định dạng chữ ---
+        gc.setFill(Color.WHITE); // Màu chữ
+        Font uiFont = Font.font("Arial", 20); // Chọn Font
+        gc.setFont(uiFont);
+
+        // --- Tính toán vị trí ---
+        double padding = 10; // Khoảng cách lề
+        double textBaselineOffsetY = 5;
+        double yPositionText = UI_PANEL_HEIGHT / 2.0 + textBaselineOffsetY;
+
+        double baselineOffset = 5; // Khoảng cách từ đỉnh chữ xuống baseline (ước lượng)
+
+
+
+        // 1. Level (Góc trái)
+        String levelText = "LEVEL: " + currentLevel; //+ " (" + mapRows + "x" + mapCols + ")"; // Bỏ kích thước map cho gọn
+
+        gc.fillText(levelText, padding, yPositionText);
+
+        // 2. Score (Giữa màn hình)
+        String scoreText = "SCORE: " + currentScore;
+
+        Text scoreTextNode = new Text(scoreText); // Dùng Text để đo chính xác
+        scoreTextNode.setFont(uiFont);
+        double scoreTextWidth = scoreTextNode.getLayoutBounds().getWidth();
+        double xPositionScore = (canvasWidth / 2.0) - (scoreTextWidth / 2.0);
+        gc.fillText(scoreText, xPositionScore, yPositionText);
+        // 3. Lives (Góc phải)
+
+        double iconDrawWidth = Sprite.SCALED_SIZE-4; // Kích thước vẽ icon mong muốn
+        double iconDrawHeight = Sprite.SCALED_SIZE-8;
+        double yPositionIcon = (UI_PANEL_HEIGHT - iconDrawHeight) / 2.0;
+
+        Image lifeIcon = null;
+        Sprite iconSprite = Sprite.player_down; // Chọn icon sprite
+
+        if (iconSprite != null && iconSprite.getFxImage() != null) {
+            lifeIcon = iconSprite.getFxImage();
+        }
+
+        String livesNumText = "" + currentLives;
+        Text livesNumTextNode = new Text(livesNumText);
+        livesNumTextNode.setFont(uiFont);
+        double livesNumTextWidth = livesNumTextNode.getLayoutBounds().getWidth();
+        // Đặt text gần mép phải
+        double xPositionLivesText = canvasWidth - livesNumTextWidth - padding;
+        gc.fillText(livesNumText, xPositionLivesText, yPositionText );
+
+        // Vẽ Icon ngay bên trái số mạng
+        if (lifeIcon != null) {
+            double xPositionIcon = xPositionLivesText - iconDrawWidth - 5; // Cách text 5px
+            gc.drawImage(lifeIcon, xPositionIcon, yPositionIcon, iconDrawWidth, iconDrawHeight);
+        }
+
+
+        //Time
+
+        String timeText = "TIME: " + totalSecondsRemaining;
+        double xPositionTime = padding + 150; // Điều chỉnh khoảng cách 150 nếu cần
+        gc.fillText(timeText, xPositionTime, yPositionText);
+        // --- Định dạng và vẽ ---
+        // Chọn màu và font
+
+
+        // TODO: Vẽ các yếu tố UI khác (Time, Level - bạn đã có Level rồi)
+        // String levelText = "LEVEL: " + (gameMap != null ? gameMap.getLevel() : "?");
+        // gc.fillText(levelText, canvas.getWidth() - 150, yPositionLives); // Ví dụ: góc trên phải
+    }
+    // --- THÊM PHƯƠNG THỨC XỬ LÝ VA CHẠM LỬA - BOM ---
+    private void handleFlameBombCollisions() {
+        // Sử dụng List tạo mới để tránh ConcurrentModificationException nếu bom nổ tạo flame mới ngay
+        List<Flame> currentFlames = new ArrayList<>(flames);
+        List<Bomb> currentBombs = new ArrayList<>(bombs);
+
+        for (Flame flame : currentFlames) {
+            // Chỉ kiểm tra flame còn active
+            if (!flame.isActive()) continue;
+
+            for (Bomb bomb : currentBombs) {
+                // Chỉ kiểm tra bom đang đếm ngược (active, chưa nổ)
+                // Và không phải là quả bom gốc đã tạo ra ngọn lửa này (tránh tự kích nổ lại)
+                // => Cần thêm owner vào Flame hoặc cách khác để nhận biết nguồn gốc flame (tạm bỏ qua)
+
+                if (bomb.isActive() && !bomb.isExploded()) {
+                    // Kiểm tra va chạm bằng Grid (đơn giản nhất)
+                    if (flame.getGridX() == bomb.getGridX() && flame.getGridY() == bomb.getGridY()) {
+                        // Va chạm xảy ra! Kích nổ quả bom này
+                        bomb.triggerExplosion();
+                        // Không cần break vì một flame có thể kích nổ nhiều bom trên đường đi
+                    }
+                /* // Hoặc kiểm tra bằng AABB (chính xác hơn nếu cần)
+                double flameSize = Sprite.SCALED_SIZE;
+                double bombSize = Sprite.SCALED_SIZE;
+                // ... (tính toán left, right, top, bottom cho flame và bomb) ...
+                // Lưu ý tọa độ Y cần cộng UI_PANEL_HEIGHT nếu có
+                // boolean overlaps = ... (kiểm tra AABB overlap) ...
+                if (overlaps) {
+                    bomb.triggerExplosion();
+                }
+                */
+                }
+            }
+        }
+    }
+    private void handlePlayerItemCollisions() {
+        if (player == null || !player.isAlive()) return; // Không xử lý nếu Player không hợp lệ
+
+        Iterator<Item> itemIterator = items.iterator();
+        while (itemIterator.hasNext()) {
+            Item item = itemIterator.next();
+            if (item.isActive() && player.collidesWith(item)) { // Giả sử Player.collidesWith(item) đã có
+                System.out.println("Player collided with Item at (" + item.getGridX() + ", " + item.getGridY() + ")");
+                item.applyEffect(player);
+                item.setActive(false); // Đánh dấu để xóa (hoặc xử lý hiệu ứng biến mất)
+            }
+            // Xóa item không active (nên đặt sau vòng lặp hoặc dùng cách an toàn hơn)
+            // Tạm thời logic xóa vẫn nằm trong updateItems()
+        }
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -98,12 +258,12 @@ public class Bomberman extends Application {
                 double deltaTime = (now - lastUpdateTime) / 1_000_000_000.0;
                 lastUpdateTime = now;
 
-                // TODO: Kiểm tra trạng thái game (ví dụ: nếu PAUSED thì không update)
-                // if (gameState == GameState.PAUSED) {
-                //    // Cập nhật UI tạm dừng nếu có
-                //    renderUI(gc);
-                //    return; // Không update thực thể
-                // }
+                if (levelTimeRemaining > 0) { // Chỉ đếm ngược nếu thời gian còn > 0
+                    levelTimeRemaining -= deltaTime;
+
+                }
+                if (levelTimeRemaining <= 0 && player != null && player.isAlive()) {
+                    System.out.println("TIME'S UP!");}
 
 
                 // --- Vòng lặp Update ---
@@ -112,6 +272,43 @@ public class Bomberman extends Application {
                 // Cập nhật Player (chỉ nếu player không null)
                 if (player != null) {
                     player.update(deltaTime);
+                }
+               //--- KIểm tra Portal---
+                // Trong Bomberman.handle() hoặc handlePortalTransition()
+
+                if (player != null && player.isAlive() && portalActivated && portalGridX != -1) {
+
+                    // --- Tính toán vị trí TÂM của Player ---
+                    double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                    double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+
+                    // --- Xác định ô lưới mà TÂM Player đang ở trong ---
+                    int playerGridX = (int) Math.floor(playerCenterX / Sprite.SCALED_SIZE);
+                    int playerGridY = (int) Math.floor(playerCenterY / Sprite.SCALED_SIZE);
+                    // Lưu ý: Nếu dùng UI Panel, Y của tâm phải trừ offset trước khi chia:
+                    // int playerGridY = (int) Math.floor((playerCenterY - UI_PANEL_HEIGHT) / Sprite.SCALED_SIZE);
+
+                    // --- Thêm Log Debug để xem tọa độ tâm và grid tính từ tâm ---
+                    if (Math.abs(playerGridX - portalGridX) <= 1 && Math.abs(playerGridY - portalGridY) <= 1) {
+                        System.out.printf("Portal Check (Center): Player Center Grid(%d, %d) vs Portal Grid(%d, %d) | Player Center Pixel(%.2f, %.2f)\n",
+                                playerGridX, playerGridY, portalGridX, portalGridY,
+                                playerCenterX, playerCenterY);
+                    }
+                    // ---------------------------------------------------------
+
+                    // --- So sánh tọa độ lưới tính từ TÂM ---
+                    if (playerGridX == portalGridX && playerGridY == portalGridY) {
+                        System.out.println("Player entered portal! (Center Grid match)");
+                        currentLevel++;
+                        if (currentLevel <= MAX_LEVEL) {
+                            System.out.println("Loading next level: " + currentLevel);
+                            loadLevel(currentLevel);
+                        } else {
+                            System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
+                            if (primaryStage != null) primaryStage.close();
+                        }
+                        // return;
+                    }
                 }
                 // --- KIỂM TRA VA CHẠM GIỮA PLAYER VÀ BOM ĐỂ KÍCH HOẠT ĐÁ BOM ---
                 if (player != null && player.kickableBombPending != null && player.kickDirectionPending != Direction.NONE) {
@@ -129,9 +326,6 @@ public class Bomberman extends Application {
                     player.kickableBombPending = null;
                     player.kickDirectionPending = Direction.NONE;
 
-                    // Optional: Add logic here to slightly push the player back
-                    // or adjust their position if needed after initiating the kick,
-                    // although checkCollision returning false should allow movement.
                 }
 
 
@@ -149,19 +343,23 @@ public class Bomberman extends Application {
 
                 // --- Cập nhật Items ---
                 updateItems(deltaTime);
+                // --- XỬ LÝ TƯƠNG TÁC SAU KHI UPDATE ---
+                handleFlameBombCollisions(); // << GỌI PHƯƠNG THỨC MỚI Ở ĐÂY
+                handlePlayerItemCollisions(); // Có thể tách logic nhặt item ra đây
+                //--- kiểm tra Portal---
+                if (!portalActivated) { // Chỉ kiểm tra nếu portal chưa mở
+                    // --- THAY BẰNG ĐIỀU KIỆN KÍCH HOẠT CỦA BẠN ---
+                    boolean activationConditionMet = false;
+                   //TODO thêm điều kiện giết het quái.
 
 
-                // TODO: Kiểm tra điều kiện chuyển màn (ví dụ: Player đến Portal và hết quái vật)
-                // if (player != null && player.isOnPortal() && enemies.isEmpty()) { // Cần thêm phương thức isOnPortal() vào Player
-                //    currentLevel++;
-                //    if (currentLevel <= MAX_LEVEL) {
-                //       loadLevel(currentLevel); // Tải màn mới
-                //    } else {
-                //       // Game Over - Win
-                //       // gameState = GameState.GAME_OVER;
-                //       // Hiển thị màn hình thắng cuộc
-                //    }
-                // }
+                    if (activationConditionMet) {
+                        portalActivated = true;
+                        System.out.println("Portal Activated!");
+                        // TODO: Có thể phát âm thanh báo hiệu Portal mở
+                    }
+                }
+
 
                 // TODO: Kiểm tra điều kiện thua cuộc (ví dụ: Player chết và hết mạng)
                 // if (player != null && player.isDead() && lives <= 0) { // Cần thêm phương thức isDead() vào Player
@@ -172,11 +370,13 @@ public class Bomberman extends Application {
 
                 // --- Vòng lặp Render ---
                 // Xóa toàn bộ Canvas trước khi vẽ lại (chỉ nếu gc không null)
-                if (gc != null) {
-                    gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-                } else {
-                    System.err.println("Warning: GraphicsContext is null during render.");
-                    return; // Không thể render nếu gc null
+                if (gc == null) return;
+                gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+                // --- 2. Vẽ Nền Thanh UI ---
+                if (UI_PANEL_HEIGHT > 0) {
+                    gc.setFill(Color.rgb(40, 40, 40)); // Màu xám tối (hoặc màu bạn chọn)
+                    gc.fillRect(0, 0, canvas.getWidth(), UI_PANEL_HEIGHT); // Vẽ ở trên cùng
                 }
 
 
@@ -186,14 +386,8 @@ public class Bomberman extends Application {
                 } else {
                     System.err.println("Warning: gameMap is null during render.");
                 }
-
-
-                // Vẽ các thực thể động (Player, Enemies, Bombs, Flames, Items) SAU khi vẽ map
-
-                // Vẽ Bom
                 renderBombs(gc);
 
-                // --- Vẽ Item (thường vẽ dưới Player) ---
                 renderItems(gc);
 
 
@@ -207,16 +401,12 @@ public class Bomberman extends Application {
                     System.err.println("Warning: player is null during render.");
                 }
 
-                // Vẽ Flames (thường vẽ trên cùng)
                 renderFlames(gc);
-
-
-                // --- Vẽ các animation tạm thời (trên cùng) ---
                 renderTemporaryAnimations(gc);
 
 
                 // TODO: Vẽ các yếu tố UI (điểm số, thời gian, ...)
-                // renderUI(gc);
+                renderUI(gc);
             }
         };
 
@@ -227,7 +417,13 @@ public class Bomberman extends Application {
     private void loadLevel(int levelNumber) {
         try {
             System.out.println("Loading level " + levelNumber + "..."); // Log bắt đầu tải level
-
+            this.score = 0;
+            this.levelTimeRemaining = LEVEL_DURATION_SECONDS;
+            this.portalActivated = false;
+            this.portalGridX = -1;
+            this.portalGridY = -1;
+            System.out.println("Score, Timer, Portal state reset.");
+            System.out.println("Level timer reset to " + LEVEL_DURATION_SECONDS + " seconds.");
             // Xóa các thực thể và animation từ màn chơi trước
             bombs.clear();
             flames.clear();
@@ -239,9 +435,6 @@ public class Bomberman extends Application {
 
             // --- 1. Tải MapData và Khởi tạo Map ---
             MapData mapData = new MapData(levelNumber);
-            // Khởi tạo Map: Truyền tham chiếu 'this' (Bomberman)
-            // Đây là nơi tạo đối tượng com.example.bomberman.Map.Map, nó sẽ gọi initializeTiles()
-            // initializeTiles() sẽ tạo các Tile ban đầu (bao gồm Brick cho Item ẩn)
             gameMap = new com.example.bomberman.Map.Map(mapData, this); // Sử dụng tên đầy đủ package
 
             // --- 2. Lấy thông tin Item được giấu từ MapData ---
@@ -252,7 +445,7 @@ public class Bomberman extends Application {
 
             // 3. Cập nhật kích thước canvas
             int canvasWidth = mapData.getCols() * Sprite.SCALED_SIZE;
-            int canvasHeight = mapData.getRows() * Sprite.SCALED_SIZE;
+            int canvasHeight = mapData.getRows() * Sprite.SCALED_SIZE + UI_PANEL_HEIGHT;
             if (canvas == null) {
                 canvas = new Canvas(canvasWidth, canvasHeight);
                 gc = canvas.getGraphicsContext2D();
@@ -379,9 +572,17 @@ public class Bomberman extends Application {
                         case 'a':
                             System.out.println("Found hidden Item ('" + mapChar + "') at grid (" + j + ", " + i + "). Initial tile is Brick. Item will spawn after destruction."); // Log
                             break;
-                        case '#': // Wall
-                        case '*': // Brick (gạch không chứa item)
+                        case '#': break;
+                        case '*': break;
                         case 'x': // Portal
+                            if (portalGridX == -1) {
+                                portalGridX = j;
+                                portalGridY = i;
+                                System.out.println("Portal found and position stored at (" + j + ", " + i + ")");
+                            } else {
+                                // Đã bỏ warning spam ở đây
+                            }
+                            break;
                         case ' ': // Grass
                             // Các ký tự này chỉ đại diện cho Tile tĩnh hoặc Tile nền ban đầu
                             // Không tạo thực thể động ở đây
@@ -467,7 +668,7 @@ public class Bomberman extends Application {
     // Phương thức này sẽ được gọi từ Bomb.explode() khi ngọn lửa chạm gạch
     public void brickDestroyed(int gridX, int gridY) {
         System.out.println("Bomberman received notification: Brick destroyed at (" + gridX + ", " + gridY + ")"); // Log
-
+        addScore(10);
         // --- 1. Tạo animation gạch vỡ tại vị trí này ---
         // Sử dụng các sprite brick_exploded, brick_exploded1, brick_exploded2
         // Thời gian animation có thể lấy từ Flame hoặc đặt cố định
@@ -684,36 +885,13 @@ public class Bomberman extends Application {
     // --- Phương thức cập nhật tất cả Items ---
     private void updateItems(double deltaTime) {
         // Sử dụng Iterator để có thể xóa phần tử trong khi duyệt danh sách một cách an toàn
-        Iterator<com.example.bomberman.entities.Items.Item> iterator = items.iterator();
+        Iterator<Item> iterator = items.iterator();
 
         while (iterator.hasNext()) {
-            com.example.bomberman.entities.Items.Item item = iterator.next();
-
+            Item item = iterator.next();
             // 1. Cập nhật trạng thái của Item (bao gồm animation và logic hết hạn nếu có)
             item.update(deltaTime);
 
-            // 2. Kiểm tra va chạm Player với Item chỉ nếu cả Player và Item còn active
-            // Chúng ta chỉ kiểm tra va chạm nếu Player còn sống
-            if (player != null && player.isAlive() && item.isActive()) {
-                // Gọi phương thức collidesWith() đã thêm vào lớp Player
-                if (player.collidesWith(item)) {
-                    // Va chạm xảy ra! Player đã nhặt Item.
-
-                    System.out.println("Player collided with Item at (" + item.getGridX() + ", " + item.getGridY() + ")"); // Log
-
-                    // Áp dụng hiệu ứng của Item lên Player
-                    item.applyEffect(player); // Item sẽ gọi phương thức phù hợp trong Player
-
-                    // Đánh dấu Item là không còn active sau khi bị nhặt
-                    // Điều này sẽ khiến Item bị xóa ở bước tiếp theo
-                    item.setActive(false);
-
-                    // TODO: Phát âm thanh nhặt item (gọi ở đây hoặc trong applyEffect của Item)
-
-                    // TODO: Nếu Player chỉ có thể nhặt 1 Item mỗi frame để tránh lỗi, có thể break; ở đây
-                    // break; // Thoát vòng lặp sau khi nhặt 1 item
-                }
-            }
 
             // 3. Xóa Item khỏi danh sách nếu nó không còn active (do bị nhặt HOẶC hết hạn tự nhiên nếu có)
             if (!item.isActive()) {

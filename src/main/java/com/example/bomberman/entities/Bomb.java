@@ -1,5 +1,6 @@
 package com.example.bomberman.entities;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.Map.Map; // Cần import lớp Map
 import com.example.bomberman.Map.Tile; // Cần import lớp Tile
 import com.example.bomberman.Map.TileType; // Cần import lớp TileType
@@ -150,13 +151,14 @@ public class Bomb {
 
     // Phương thức được gọi khi bom nổ
     private void explode() {
+        if (exploded) return;
+
         exploded = true;
         active = false; // Đặt active = false ngay khi nổ để Bomberman có thể xử lý
 
         isKicked=false;
         kickDirection=Direction.NONE;
         kickSpeed=0;
-
 
         System.out.println("Bomb at (" + gridX + ", " + gridY + ") exploded! Flame length: " + flameLength); // Log tạm thời
 
@@ -165,6 +167,8 @@ public class Bomb {
         // --- Logic tạo các đối tượng Flame lan tỏa ra các hướng ---
 
         // Tạo Flame ở tâm vụ nổ (vị trí của bom)
+        generatedFlames.clear();
+
         generatedFlames.add(new Flame(gridX, gridY, 0)); // flameType 0 = center
 
         // Các hướng lan tỏa: Lên, Xuống, Trái, Phải
@@ -229,6 +233,16 @@ public class Bomb {
 
         // Sau khi tạo Flame, bom gốc (đối tượng Bomb này) sẽ biến mất sau khi animation nổ kết thúc
         // active = false; // Điều này đã được thực hiện ở đầu phương thức explode()
+    }
+    public void triggerExplosion() {
+        // Chỉ kích nổ nếu bom đang đếm ngược (active và chưa exploded)
+        if (this.active && !this.exploded) {
+            System.out.println("Chain reaction triggered for bomb at (" + gridX + ", " + gridY + ")");
+            // Có thể đặt lại explosionTimer để nó nổ "ngay lập tức" về mặt logic
+            // hoặc đơn giản là gọi thẳng explode()
+            // this.explosionTimer = this.timeToExplode; // Đảm bảo nó sẽ gọi explode() ở update tiếp theo
+            explode(); // Gọi trực tiếp để nổ ngay trong frame này
+        }
     }
     // phương thức sút bom
     public void startKicking(Direction direction,double speed){
@@ -334,7 +348,7 @@ public class Bomb {
             // Cần điều chỉnh vị trí vẽ nếu sprite có kích thước khác Sprite.SCALED_SIZE
             // hoặc nếu bạn muốn căn giữa sprite.
             // Hiện tại đang vẽ góc trên bên trái tại pixelX, pixelY
-            gc.drawImage(currentImage, pixelX, pixelY);
+            gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT);
         }
 
         // TODO: Logic vẽ các hiệu ứng khác của Bom (ví dụ: hiệu ứng nổ của bom gốc)
