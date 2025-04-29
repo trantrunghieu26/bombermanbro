@@ -1,5 +1,6 @@
 package com.example.bomberman.entities.Items;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.entities.Player;
 import com.example.bomberman.graphics.Sprite;
 import com.example.bomberman.graphics.Animation; // Import lớp Animation
@@ -80,7 +81,7 @@ public class BombItem extends Item {
                 // Cần điều chỉnh vị trí vẽ nếu sprite có kích thước khác Sprite.SCALED_SIZE
                 // hoặc nếu bạn muốn căn giữa sprite.
                 // Hiện tại đang vẽ góc trên bên trái tại pixelX, pixelY (từ lớp cha Item)
-                gc.drawImage(currentImage, pixelX, pixelY, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE); // Vẽ với kích thước đã scale
+                gc.drawImage(currentImage, pixelX, pixelY+ Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE); // Vẽ với kích thước đã scale
             }
 
             // TODO: Logic vẽ các hiệu ứng khác của BombItem
