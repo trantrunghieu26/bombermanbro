@@ -647,14 +647,14 @@ public class Bomberman extends Application {
     }
 
     // TODO: Thêm phương thức kiểm tra xem có bom tại vị trí lưới cụ thể không (dùng cho Player.placeBomb)
-    // public boolean isBombAtGrid(int gridX, int gridY) {
-    //     for (Bomb bomb : bombs) {
-    //         if (bomb.isActive() && bomb.getGridX() == gridX && bomb.getGridY() == gridY) {
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
+    public boolean isBombAtGrid(int gridX, int gridY) {
+         for (Bomb bomb : bombs) {
+             if (bomb.isActive() && bomb.getGridX() == gridX && bomb.getGridY() == gridY) {
+                 return true;
+             }
+         }
+         return false;
+     }
 
     // --- Phương thức để thêm các đối tượng Flame vào danh sách ---
     // Phương thức này sẽ được gọi từ updateBombs khi bom nổ

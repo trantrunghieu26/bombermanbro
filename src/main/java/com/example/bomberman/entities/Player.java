@@ -163,24 +163,33 @@ public class Player {
         if (!isAlive) {
             return;
         }
+        int bombGridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
+        int bombGridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
 
         // TODO: Kiểm tra xem ô hiện tại đã có bom chưa (tránh đặt chồng lên bom khác)
+
         // Cần thêm phương thức public boolean isBombAtGrid(int gridX, int gridY) vào Bomberman và sử dụng gameManager
         boolean isBombAtCurrentLocation = false;
         if (gameManager != null) {
-            // isBombAtCurrentLocation = gameManager.isBombAtGrid(gridX, gridY);
+             isBombAtCurrentLocation = gameManager.isBombAtGrid(gridX, gridY);
         }
 
 
         // Kiểm tra xem có đủ số bom cho phép (currentBombs > 0) và ô hiện tại chưa có bom
         if (currentBombs > 0 && !isBombAtCurrentLocation) {
-            // Xác định vị trí lưới chính xác để đặt bom (làm tròn vị trí pixel của Player)
-            int bombGridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
-            int bombGridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
+            // Xác định vị trí lưới chính xác để đặt bom (làm tròn vị trí pixel của Playe
 
             // TODO: Kiểm tra xem vị trí đặt bom có hợp lệ không (ví dụ: không đặt trong tường cứng)
-            // Tile tileAtBombPos = map.getTile(bombGridX, bombGridY);
-            // if (tileAtBombPos != null && tileAtBombPos.getType() == TileType.WALL) { return; }
+             Tile tileAtBombPos = map.getTile(bombGridX, bombGridY);
+            if (map != null) { // Kiểm tra map không null
+                tileAtBombPos = map.getTile(bombGridX, bombGridY);
+            }
+            if (tileAtBombPos != null && tileAtBombPos.getType() == TileType.WALL) {
+                System.out.println("Cannot place bomb inside a solid wall.");
+                // TODO: Âm thanh báo lỗi
+                return;
+            }
+
 
             // Tạo một đối tượng Bomb mới. Truyền gameMap để Bomb có thể kiểm tra va chạm Tile khi bị đá.
             Bomb newBomb = new Bomb(bombGridX, bombGridY, flameLength, this, map); // Truyền owner (this) và map
@@ -193,12 +202,18 @@ public class Player {
                 currentBombs--;
                 // TODO: Phát âm thanh đặt bom
             } else {
-                System.err.println("Error: gameManager is null in Player! Cannot add bomb.");
+
             }
 
-        } else {
-            // TODO: Phát âm thanh báo lỗi (nếu không đặt được bom)
+        } else if (isBombAtCurrentLocation) {
+            System.out.println("Cannot place bomb: Another bomb is already at (" + bombGridX + ", " + bombGridY + ")");
+            // TODO: Phát âm thanh báo lỗi (ví dụ: tiếng "tạch")
+        } else { // Trường hợp currentBombs <= 0
+            System.out.println("Cannot place bomb: No bombs available (Current: " + currentBombs + "/" + maxBombs + ")");
+            // TODO: Phát âm thanh báo lỗi
         }
+
+
     }
 
     // Phương thức được gọi bởi Bomb khi nổ để Player có thể đặt thêm bom
@@ -600,7 +615,7 @@ public class Player {
         if (currentImage != null) {
             // TODO: Điều chỉnh vị trí vẽ nếu cần căn giữa sprite hoặc offset so với vị trí pixel
             // Ví dụ: gc.drawImage(currentImage, pixelX - offsetX, pixelY - offsetY, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
-            gc.drawImage(currentImage, pixelX, pixelY, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+            gc.drawImage(currentImage, pixelX, pixelY+Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
         }
 
         // TODO: Đặt lại global alpha về 1.0 sau khi vẽ nếu đã thay đổi cho hiệu ứng bất tử sau này
