@@ -35,7 +35,7 @@ public class SpeedItem extends Item {
     // --- Override phương thức update để xử lý animation và các logic khác ---
     @Override
     public void update(double deltaTime) {
-        super.update(deltaTime)
+        super.update(deltaTime);
         // Chỉ cập nhật timer nếu vật phẩm còn active
         if (isActive()) {
             animationTimer += deltaTime;
