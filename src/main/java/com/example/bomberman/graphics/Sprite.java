@@ -31,8 +31,8 @@
          */
         public static Sprite grass = new Sprite(SCALED_SIZE, 6, 0, SpriteSheet.tiles2, 32, 32);
         public static Sprite brick = new Sprite(SCALED_SIZE, 7, 0, SpriteSheet.tiles2, 32, 32);
-        public static Sprite wall = new Sprite(DEFAULT_SIZE, 5, 0, SpriteSheet.tiles, 16, 16);
-        public static Sprite portal = new Sprite(SCALED_SIZE, 4, 0, SpriteSheet.tiles2, 14, 14);
+        public static Sprite wall = new Sprite(SCALED_SIZE, 5, 0, SpriteSheet.tiles2, 32, 32);
+        public static Sprite portal = new Sprite(DEFAULT_SIZE, 0, 11, SpriteSheet.tiles, 14, 14);
         public static Sprite realportal = new Sprite(DEFAULT_SIZE, 4, 0, SpriteSheet.tiles, 14, 14);
         public static Sprite sign1 = new Sprite(DEFAULT_SIZE, 6, 0, SpriteSheet.tiles, 16, 16);
 

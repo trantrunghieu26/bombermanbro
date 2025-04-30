@@ -138,6 +138,7 @@ public class Map {
         int rows = mapData.getRows();
         int cols = mapData.getCols();
 
+
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 // Kiểm tra biên khi truy cập tileGrid để vẽ
@@ -147,7 +148,8 @@ public class Map {
                     // Kiểm tra null trước khi lấy Sprite và vẽ
                     if (currentTile != null && currentTile.getSprite() != null) {
                         double px = currentTile.getGridX() * Sprite.SCALED_SIZE;
-                        double py = currentTile.getGridY() * Sprite.SCALED_SIZE;
+                        double py = currentTile.getGridY() * Sprite.SCALED_SIZE+Bomberman.UI_PANEL_HEIGHT;
+
                         gc.drawImage(currentTile.getSprite().getFxImage(), px, py);
                     } else if (currentTile != null && currentTile.getType() == TileType.EMPTY) {
                         // Nếu là ô EMPTY nhưng không có sprite (có thể là lỗi),
@@ -161,9 +163,7 @@ public class Map {
             }
         }
 
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Arial", 20));
-        gc.fillText("LEVEL: " + mapData.getLevel() + " (" + rows + "x" + cols + ")", 10, 20);
+
     }
 
     public int getRows() { return mapData.getRows(); }

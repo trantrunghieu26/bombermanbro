@@ -29,6 +29,7 @@ public class MapData {
     }
 
     private void loadMapFromFile(String filePath) {
+        StringBuilder fileContent = new StringBuilder();
         try {
             // Sử dụng getResourceAsStream để đọc file từ classpath (thường là thư mục res)
             InputStream is = getClass().getResourceAsStream(filePath);
