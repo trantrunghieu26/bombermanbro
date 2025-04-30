@@ -1,6 +1,7 @@
 package com.example.bomberman.Map;
 
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import com.example.bomberman.graphics.Sprite;
@@ -135,36 +136,67 @@ public class Map {
 
 
     public void render(GraphicsContext gc) {
+        if (mapData == null || tileGrid == null || gc == null) {
+            System.err.println("Error rendering map: Map data, tile grid, or GC is null.");
+            return;
+        }
+
         int rows = mapData.getRows();
         int cols = mapData.getCols();
 
+        // Lấy trạng thái portal một lần ngoài vòng lặp để tối ưu nhẹ
+        boolean isPortalCurrentlyActive = (gameManager != null && gameManager.isPortalActivated());
+        // Lấy thời gian game một lần
+        double gameTime = (gameManager != null) ? gameManager.getElapsedTime() : 0;
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                // Kiểm tra biên khi truy cập tileGrid để vẽ
-                if (i < tileGrid.length && tileGrid[i] != null && j < tileGrid[i].length) {
+                // Kiểm tra biên tileGrid
+                if (i >= 0 && i < tileGrid.length && tileGrid[i] != null && j >= 0 && j < tileGrid[i].length) {
                     Tile currentTile = tileGrid[i][j];
 
-                    // Kiểm tra null trước khi lấy Sprite và vẽ
-                    if (currentTile != null && currentTile.getSprite() != null) {
-                        double px = currentTile.getGridX() * Sprite.SCALED_SIZE;
-                        double py = currentTile.getGridY() * Sprite.SCALED_SIZE+Bomberman.UI_PANEL_HEIGHT;
+                    if (currentTile != null) {
+                        Sprite currentSprite = currentTile.getSprite();
+                        if (currentSprite != null) {
+                            Image imageToDraw = currentSprite.getFxImage();
+                            if (imageToDraw != null) {
+                                double px = currentTile.getGridX() * Sprite.SCALED_SIZE;
+                                // Tọa độ Y đã bao gồm offset (nếu có)
+                                double py = currentTile.getGridY() * Sprite.SCALED_SIZE + Bomberman.UI_PANEL_HEIGHT;
 
-                        gc.drawImage(currentTile.getSprite().getFxImage(), px, py);
-                    } else if (currentTile != null && currentTile.getType() == TileType.EMPTY) {
-                        // Nếu là ô EMPTY nhưng không có sprite (có thể là lỗi),
-                        // có thể vẽ một màu nền tạm thời để debug
-                        // gc.setFill(Color.LIGHTGREEN);
-                        // gc.fillRect(j * Sprite.SCALED_SIZE, i * Sprite.SCALED_SIZE, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+                                // --- KIỂM TRA VÀ XỬ LÝ PORTAL ---
+                                if (currentTile.getType() == TileType.PORTAL && isPortalCurrentlyActive) {
+                                    // Portal đang active -> làm nó nhấp nháy alpha
+                                    // Tính alpha dựa trên sin của thời gian
+                                    // Bạn có thể điều chỉnh số 5.0 (tần số nháy) và 0.35 (biên độ nháy)
+                                    double alpha = 0.65 + 0.35 * Math.sin(gameTime * 5.0);
+                                    // Giới hạn alpha trong khoảng hợp lệ (0.0 đến 1.0) đề phòng lỗi làm tròn
+                                    alpha = Math.max(0.0, Math.min(1.0, alpha));
+
+                                    // Lưu lại alpha hiện tại của gc
+                                    double originalAlpha = gc.getGlobalAlpha();
+                                    // Đặt alpha mới
+                                    gc.setGlobalAlpha(alpha);
+                                    // Vẽ Portal với alpha mới
+                                    gc.drawImage(imageToDraw, px, py);
+                                    // QUAN TRỌNG: Khôi phục lại alpha ban đầu để không ảnh hưởng các hình vẽ sau
+                                    gc.setGlobalAlpha(originalAlpha);
+                                } else {
+                                    // Vẽ Tile bình thường (không phải Portal active)
+                                    gc.drawImage(imageToDraw, px, py);
+                                }
+                                // ---------------------------------
+                            }
+                        } else if (currentTile.getType() == TileType.EMPTY) {
+                            // Xử lý vẽ nền cho ô trống nếu cần
+                        }
                     }
                 } else {
                     System.err.println("Warning: tileGrid access out of bounds at row " + i + ", col " + j + " during render.");
                 }
             }
         }
-
-
-    }
+    } // Kết thúc render()
 
     public int getRows() { return mapData.getRows(); }
     public int getCols() { return mapData.getCols(); }

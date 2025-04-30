@@ -88,6 +88,12 @@ public class Bomberman extends Application {
     public Stage getPrimaryStage() {
         return primaryStage;
     }
+    // hiệu ứng POrtal
+    public double getElapsedTime() {
+        // Cách tính đơn giản nhất là lấy tổng thời gian trừ đi thời gian còn lại
+        // Đảm bảo không trả về giá trị âm nếu levelTimeRemaining có thể nhỏ hơn 0
+        return Math.max(0, LEVEL_DURATION_SECONDS - levelTimeRemaining);
+    }
     public void startGame() {
         System.out.println("Starting game...");
         // Không cần loadLevel(1) ngay ở đây vì start() đã gọi rồi khi khởi tạo
@@ -381,25 +387,25 @@ public class Bomberman extends Application {
         primaryStage.setResizable(false);
         try {
             // Đặt đúng đường dẫn file font của bạn
-            InputStream fontStream = getClass().getResourceAsStream("/fonts/PressStart2P-Regular.ttf");
+            InputStream fontStream = getClass().getResourceAsStream("/Font/PressStart2P-Regular.ttf");
             if (fontStream != null) {
                 // Gán font đã load cho biến thành viên
                 this.uiFont = Font.loadFont(fontStream, 16); // Cỡ chữ 16
                 fontStream.close();
                 if (this.uiFont == null) { // Kiểm tra nếu loadFont thất bại
                     System.err.println("Font.loadFont returned null. Using default Arial.");
-                    this.uiFont = Font.font("Arial", 20);
+                    this.uiFont = Font.font("Arial", 16);
                 } else {
                     System.out.println("Custom font loaded: " + this.uiFont.getName());
                 }
             } else {
                 System.err.println("Could not find font resource stream. Using default Arial.");
-                this.uiFont = Font.font("Arial", 20); // Fallback quan trọng
+                this.uiFont = Font.font("Arial", 16); // Fallback quan trọng
             }
         } catch (Exception e) {
             System.err.println("Error loading custom font: " + e.getMessage());
             e.printStackTrace();
-            this.uiFont = Font.font("Arial", 20); // Fallback quan trọng
+            this.uiFont = Font.font("Arial", 16); // Fallback quan trọng
         }
 
         loadLevel(currentLevel);
@@ -565,6 +571,11 @@ private void handlePortalTransition(){
         // --- So sánh tọa độ lưới tính từ TÂM ---
         if (playerGridX == portalGridX && playerGridY == portalGridY) {
             System.out.println("Player entered portal! (Center Grid match)");
+            if (levelTimeRemaining > 0) { // Chỉ cộng nếu còn thời gian
+                int timeBonus = (int)(levelTimeRemaining * 2); // Ví dụ: 2 điểm/giây
+                System.out.println("Time Bonus: " + timeBonus);
+                addScore(timeBonus); // Gọi hàm cộng điểm của Bomberman
+            }
             currentLevel++;
             if (currentLevel <= MAX_LEVEL) {
                 System.out.println("Loading next level: " + currentLevel);
@@ -1093,6 +1104,9 @@ private void handleKickBombTrigger(){
         }
     }
 
+    public boolean isPortalActivated() {
+        return portalActivated;
+    }
 
 
     public static void main(String[] args) {
