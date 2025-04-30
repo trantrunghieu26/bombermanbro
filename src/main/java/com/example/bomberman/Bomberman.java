@@ -52,7 +52,8 @@ public class Bomberman extends Application {
     private java.util.Map<String, Character> hiddenItemsData;
 
     //GameState MENU vân vân
-    private GameState currentState = GameState.PLAYING;
+    private GameState currentState = GameState.MENU;
+    private Stage primaryStage;
     private Font uiFont;
 
 
@@ -74,8 +75,6 @@ public class Bomberman extends Application {
 
     private InputHandler inputHandler;
 
-    // TODO: Stage reference
-    private Stage primaryStage;
 
     private Random random = new Random();
 
@@ -83,6 +82,43 @@ public class Bomberman extends Application {
     public int getScore() {
         return score;
     }
+    public GameState getCurrentState() {
+        return currentState;
+    }
+    public Stage getPrimaryStage() {
+        return primaryStage;
+    }
+    public void startGame() {
+        System.out.println("Starting game...");
+        // Không cần loadLevel(1) ngay ở đây vì start() đã gọi rồi khi khởi tạo
+        // Chỉ cần chuyển trạng thái để handle() bắt đầu update/render game
+        // Nếu muốn load lại level 1 một cách chắc chắn:
+        // loadLevel(1); // Đảm bảo bắt đầu từ level 1 sạch sẽ
+        this.currentLevel = 1; // Reset level về 1 nếu cần
+        currentState = GameState.PLAYING; // Chuyển sang trạng thái chơi
+        // Nếu player đã tồn tại từ lần load đầu, không cần load lại level
+        // Nếu muốn load lại hoàn toàn: loadLevel(1);
+    }
+
+    /**
+     * Khởi động lại game sau khi Game Over: Chuyển state sang PLAYING và load level 1.
+     * Được gọi bởi InputHandler khi nhấn Enter ở màn hình Game Over.
+     */
+    public void restartGame() {
+        System.out.println("Restarting game...");
+        this.currentLevel = 1; // Đặt lại level về 1
+        // Cần load lại level để reset mọi thứ: map, player, score, timer,...
+        loadLevel(this.currentLevel);
+        // Sau khi loadLevel thành công, trạng thái sẽ tự động được đặt lại nếu cần,
+        // nhưng để chắc chắn, đặt lại là PLAYING
+        currentState = GameState.PLAYING;
+    }
+    // -------------------------------------------------------------
+
+
+    // ... các phương thức khác (start, loadLevel, updateGame, renderGame, renderUI, ...) ...
+
+
 
     // --- THÊM PHƯƠNG THỨC ĐỂ TĂNG ĐIỂM ---
     public void addScore(int points) {
@@ -167,6 +203,88 @@ public class Bomberman extends Application {
         gc.fillText(timeText, xPositionTime, yPositionText);
 
     }
+    private void renderMenu(GraphicsContext gc) {
+        if (gc == null || canvas == null) return;
+
+        // --- Vẽ nền (ví dụ: đen) ---
+        gc.setFill(Color.BLACK);
+        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        // --- Vẽ Tiêu đề Game ---
+        String title = "BOMBERMAN";
+        gc.setFill(Color.YELLOW);
+        // Chọn Font lớn cho tiêu đề
+        Font titleFont = (this.uiFont != null) ? Font.font(this.uiFont.getFamily(), 60) : Font.font("Arial", 60);
+        gc.setFont(titleFont);
+        // Căn giữa tiêu đề
+        Text titleNode = new Text(title);
+        titleNode.setFont(titleFont);
+        double titleWidth = titleNode.getLayoutBounds().getWidth();
+        gc.fillText(title, (canvas.getWidth() / 2.0) - (titleWidth / 2.0), 150); // Điều chỉnh Y nếu cần
+
+        // --- Vẽ tùy chọn "Start Game" ---
+        String startText = "Press ENTER to Start";
+        gc.setFill(Color.WHITE);
+        // Dùng font nhỏ hơn
+        Font optionFont = (this.uiFont != null) ? Font.font(this.uiFont.getFamily(), 24) : Font.font("Arial", 24);
+        gc.setFont(optionFont);
+        // Căn giữa
+        Text startNode = new Text(startText);
+        startNode.setFont(optionFont);
+        double startWidth = startNode.getLayoutBounds().getWidth();
+        gc.fillText(startText, (canvas.getWidth() / 2.0) - (startWidth / 2.0), 300); // Điều chỉnh Y
+
+        // TODO: Thêm các tùy chọn khác như "High Scores", "Exit" nếu muốn
+    }
+    private void renderGameOverScreen(GraphicsContext gc) {
+        if (gc == null || canvas == null) return;
+
+        // --- Vẽ nền (ví dụ: đỏ sẫm hoặc đen) ---
+        gc.setFill(Color.DARKRED);
+        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        // --- Vẽ chữ "GAME OVER" ---
+        String gameOverText = "GAME OVER";
+        gc.setFill(Color.WHITE);
+        // Font lớn
+        Font gameOverFont = (this.uiFont != null) ? Font.font(this.uiFont.getFamily(), 60) : Font.font("Arial", 60);
+        gc.setFont(gameOverFont);
+        // Căn giữa
+        Text goNode = new Text(gameOverText);
+        goNode.setFont(gameOverFont);
+        double goWidth = goNode.getLayoutBounds().getWidth();
+        gc.fillText(gameOverText, (canvas.getWidth() / 2.0) - (goWidth / 2.0), 150);
+
+        // --- Vẽ Điểm số ---
+        String scoreText = "Final Score: " + this.score; // Lấy điểm cuối cùng
+        gc.setFill(Color.YELLOW);
+        // Font nhỏ hơn
+        Font scoreFont = (this.uiFont != null) ? Font.font(this.uiFont.getFamily(), 24) : Font.font("Arial", 24);
+        gc.setFont(scoreFont);
+        // Căn giữa
+        Text scoreNode = new Text(scoreText);
+        scoreNode.setFont(scoreFont);
+        double scoreWidth = scoreNode.getLayoutBounds().getWidth();
+        gc.fillText(scoreText, (canvas.getWidth() / 2.0) - (scoreWidth / 2.0), 250);
+
+        // --- Vẽ tùy chọn "Restart" / "Exit" ---
+        String restartText = "Press ENTER to Restart";
+        String exitText = "Press ESC to Exit";
+        gc.setFill(Color.WHITE);
+        gc.setFont(scoreFont); // Dùng lại font điểm số
+
+        // Căn giữa Restart
+        Text restartNode = new Text(restartText);
+        restartNode.setFont(scoreFont);
+        double restartWidth = restartNode.getLayoutBounds().getWidth();
+        gc.fillText(restartText, (canvas.getWidth() / 2.0) - (restartWidth / 2.0), 350);
+
+        // Căn giữa Exit
+        Text exitNode = new Text(exitText);
+        exitNode.setFont(scoreFont);
+        double exitWidth = exitNode.getLayoutBounds().getWidth();
+        gc.fillText(exitText, (canvas.getWidth() / 2.0) - (exitWidth / 2.0), 400); // Cách Restart một chút
+    }
     // --- THÊM PHƯƠNG THỨC XỬ LÝ VA CHẠM LỬA - BOM ---
     private void handleFlameBombCollisions() {
         // Sử dụng List tạo mới để tránh ConcurrentModificationException nếu bom nổ tạo flame mới ngay
@@ -205,7 +323,14 @@ public class Bomberman extends Application {
     public void togglePause() {
         if (currentState == GameState.PLAYING) {
             currentState = GameState.PAUSED;
-            System.out.println("Game Paused");
+            System.out.println("Game Paused"); if (inputHandler != null) {
+                inputHandler.clearMovingKeys(); // Gọi hàm mới trong InputHandler
+            }
+            if (player != null) {
+                player.setMovingDirection(Direction.NONE); // Bảo Player dừng lại ngay
+            }
+            // ---------------------------------
+
             // TODO: Có thể dừng nhạc nền ở đây
         } else if (currentState == GameState.PAUSED) {
             currentState = GameState.PLAYING;
@@ -324,36 +449,11 @@ public class Bomberman extends Application {
 
                     case MENU:
                         // TODO: Xử lý update và render cho Menu sau
-                        // renderMenu(gc);
-                        // Hiện tại có thể chỉ vẽ nền đen
-                        if(gc != null) {
-                            gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-                            gc.setFill(Color.BLACK);
-                            gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-                            // Vẽ chữ tạm
-                            gc.setFill(Color.WHITE);
-                            gc.setFont(Font.font("Arial", 30));
-                            gc.fillText("MAIN MENU (Not Implemented)", 100, 200);
-                        }
+                         renderMenu(gc);
                         break;
 
                     case GAME_OVER:
-                        // TODO: Xử lý update và render cho Game Over sau
-                        // renderGameOverScreen(gc);
-                        // Hiện tại có thể chỉ vẽ nền đen
-                        if(gc != null) {
-                            gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-                            gc.setFill(Color.BLACK);
-                            gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-                            // Vẽ chữ tạm
-                            gc.setFill(Color.RED);
-                            gc.setFont(Font.font("Arial", 40));
-                            gc.fillText("GAME OVER (Not Implemented)", 100, 200);
-                            // Vẽ điểm số
-                            gc.setFill(Color.WHITE);
-                            gc.setFont(Font.font("Arial", 20));
-                            gc.fillText("Final Score: " + score, 100, 250);
-                        }
+                       renderGameOverScreen(gc);
                         break;
 
                     // Thêm các case khác nếu cần (LEVEL_CLEARED, GAME_WON)
@@ -411,8 +511,12 @@ public class Bomberman extends Application {
             levelTimeRemaining -= deltaTime;
 
         }
-        if (levelTimeRemaining <= 0 && player != null && player.isAlive()) {
-            System.out.println("TIME'S UP!");}
+        // Trong Bomberman.updateGame()
+        if (levelTimeRemaining <= 0 && currentState == GameState.PLAYING) { // Thêm kiểm tra currentState
+            System.out.println("TIME'S UP! -> GAME OVER (Temporary)");
+            currentState = GameState.GAME_OVER; // << CHUYỂN STATE
+            // Không cần gọi player.die() nữa nếu state đã chuyển
+        }
         if (player != null) {
             player.update(deltaTime);
         }
