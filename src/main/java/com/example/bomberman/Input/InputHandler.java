@@ -1,5 +1,5 @@
 package com.example.bomberman.Input; // Đặt trong package Input
-
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.entities.Player; // Cần import lớp Player
 import com.example.bomberman.entities.Direction; // Cần import enum Direction
 import javafx.scene.Scene;
@@ -10,6 +10,7 @@ import java.util.Set;
 
 public class InputHandler {
 
+    private Bomberman gameManager;
     private Scene gameScene;
     private Player player;
     // Set để theo dõi các phím di chuyển đang được giữ
@@ -17,9 +18,10 @@ public class InputHandler {
     // Có thể thêm các cờ trạng thái khác nếu cần (ví dụ: isBombKeyPressed)
 
     // Constructor nhận Scene và Player
-    public InputHandler(Scene gameScene, Player player) {
+    public InputHandler(Scene gameScene, Player player,Bomberman gameManager) {
         this.gameScene = gameScene;
         this.player = player;
+        this.gameManager=gameManager;
         attachInputListeners(); // Gắn các trình nghe sự kiện khi tạo đối tượng
     }
 
@@ -46,8 +48,9 @@ public class InputHandler {
 
             // Xử lý phím tạm dừng (chỉ cần xử lý khi nhấn xuống)
             if (code == KeyCode.ESCAPE) {
-                // Logic tạm dừng game. Có thể gọi một phương thức trong lớp GameState
-                // gameManager.togglePause(); // Cần tham chiếu đến GameStateManager
+                if (gameManager != null) { // Kiểm tra null
+                    gameManager.togglePause(); // Gọi phương thức mới trong Bomberman
+                }
             }
 
             // Ngăn chặn sự kiện được xử lý tiếp bởi các Node khác nếu cần
