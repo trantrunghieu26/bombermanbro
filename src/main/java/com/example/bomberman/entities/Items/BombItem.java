@@ -37,7 +37,7 @@ public class BombItem extends Item {
     @Override
     public void update(double deltaTime) {
         // Gọi update của lớp cha nếu có logic chung cần thiết
-        // super.update(deltaTime); // Lớp cha Item hiện tại không có logic update
+         super.update(deltaTime); // Lớp cha Item hiện tại không có logic update
 
         // --- Cập nhật bộ đếm thời gian animation ---
         // Chỉ cập nhật timer nếu vật phẩm còn active

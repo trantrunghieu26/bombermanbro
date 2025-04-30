@@ -1,6 +1,7 @@
 
 package com.example.bomberman.entities.Items;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.entities.Player;
 import com.example.bomberman.graphics.Sprite;
 import com.example.bomberman.graphics.Animation; // Import lớp Animation
@@ -34,7 +35,7 @@ public class KickBombItem extends Item {
     @Override
     public void update(double deltaTime) {
         // TODO: Nếu lớp Item base có logic update chung cần thiết (ví dụ: timer tồn tại), hãy gọi super.update(deltaTime);
-        // super.update(deltaTime); // <-- Gọi lớp cha nếu cần
+         super.update(deltaTime); // <-- Gọi lớp cha nếu cần
 
         // --- Cập nhật bộ đếm thời gian animation ---
         // Chỉ cập nhật timer nếu vật phẩm còn active
@@ -74,10 +75,7 @@ public class KickBombItem extends Item {
 
 
             if (currentImage != null) {
-                // Vẽ hình ảnh KickBombItem tại vị trí pixel hiện tại
-                // pixelX, pixelY là thuộc tính từ lớp Item base
-                // Vẽ với kích thước đã scale (Sprite.SCALED_SIZE)
-                gc.drawImage(currentImage, pixelX, pixelY, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+                gc.drawImage(currentImage, pixelX, pixelY+ Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
             }
 
             // TODO: Logic vẽ các hiệu ứng khác của KickBombItem (nếu có)
@@ -92,7 +90,7 @@ public class KickBombItem extends Item {
         if (isActive()) { // Chỉ áp dụng hiệu ứng nếu vật phẩm còn active
             System.out.println("KickBombItem collected by Player at (" + gridX + ", " + gridY + "). Enabling Kick Bomb ability."); // Log
 
-            // GỌI PHƯƠNG THỨC TRONG LỚP PLAYER ĐỂ BẬT KHẢ NĂNG Đá Bom
+
             player.enableKickBomb(); // enableKickBomb() là phương thức trong Player
 
             setActive(false); // Đánh dấu active = false để vật phẩm biến mất sau khi nhặt

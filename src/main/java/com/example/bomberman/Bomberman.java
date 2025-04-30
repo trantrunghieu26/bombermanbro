@@ -884,17 +884,19 @@ public class Bomberman extends Application {
 
     // --- Phương thức cập nhật tất cả Items ---
     private void updateItems(double deltaTime) {
+
         // Sử dụng Iterator để có thể xóa phần tử trong khi duyệt danh sách một cách an toàn
         Iterator<Item> iterator = items.iterator();
 
         while (iterator.hasNext()) {
             Item item = iterator.next();
-            // 1. Cập nhật trạng thái của Item (bao gồm animation và logic hết hạn nếu có)
+
             item.update(deltaTime);
 
 
             // 3. Xóa Item khỏi danh sách nếu nó không còn active (do bị nhặt HOẶC hết hạn tự nhiên nếu có)
             if (!item.isActive()) {
+
                 iterator.remove(); // Xóa an toàn khỏi danh sách `items`
                 // System.out.println("Item removed from list. Total items remaining: " + items.size()); // Log (có thể quá nhiều)
             }

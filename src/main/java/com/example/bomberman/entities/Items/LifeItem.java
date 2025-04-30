@@ -1,5 +1,6 @@
 package com.example.bomberman.entities.Items;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.entities.Player;
 import com.example.bomberman.graphics.Sprite;
 import com.example.bomberman.graphics.Animation; // Import lớp Animation
@@ -34,6 +35,7 @@ public class LifeItem extends Item {
     // --- Override phương thức update để xử lý animation và các logic khác ---
     @Override
     public void update(double deltaTime) {
+        super.update(deltaTime);
         // Chỉ cập nhật timer nếu vật phẩm còn active
         if (isActive()) {
             animationTimer += deltaTime;
@@ -69,7 +71,7 @@ public class LifeItem extends Item {
 
             if (currentImage != null) {
                 // Vẽ hình ảnh LifeItem tại vị trí pixel hiện tại
-                gc.drawImage(currentImage, pixelX, pixelY, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE); // Vẽ với kích thước đã scale
+                gc.drawImage(currentImage, pixelX, pixelY+ Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE); // Vẽ với kích thước đã scale
             }
             // TODO: Logic vẽ các hiệu ứng khác của LifeItem
         }
