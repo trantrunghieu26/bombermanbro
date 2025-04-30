@@ -20,6 +20,9 @@ import com.example.bomberman.Bomberman;
 
 // Lớp đại diện cho người chơi Bomberman
 public class Player {
+    private static final int MAX_ALLOWED_BOMBS = 8;   // Ví dụ: Tối đa 8 quả bom
+    private static final int MAX_ALLOWED_FLAMES = 8; // Ví dụ: Tối đa lửa dài 8 ô
+    private static final double MAX_ALLOWED_SPEED = 250.0; // Ví dụ: Tối đa tốc độ 250
 
     // --- Thuộc tính vị trí và di chuyển ---
     private double pixelX; // Vị trí pixel theo trục X
@@ -227,25 +230,48 @@ public class Player {
     // --- Phương thức áp dụng hiệu ứng từ Item BombItem ---
     // Được gọi từ BombItem.applyEffect()
     public void increaseMaxBombs() {
-        maxBombs++; // Tăng giới hạn số bom tối đa
-        currentBombs++; // Tăng số bom hiện có theo giới hạn mới (như game gốc Bomberman)
-        System.out.println("Collected BombItem! New Max Bombs: " + maxBombs + ", Current Bombs: " + currentBombs); // Log
-        // TODO: Giới hạn số bom tối đa tuyệt đối (ví dụ: maxBombs không quá 10)
+        if(maxBombs<MAX_ALLOWED_BOMBS){
+            maxBombs++;
+            currentBombs++; System.out.println("Collected BombItem! New Max Bombs: " + maxBombs + ", Current Bombs: " + currentBombs);
+            // TODO: Có thể phát âm thanh power-up thành công
+        } else {
+            System.out.println("Max bomb limit reached (" + MAX_ALLOWED_BOMBS + ").");
+            // TODO: Có thể phát âm thanh báo đã max hoặc cộng điểm thay thế
+            gameManager.addScore(50); // Ví dụ: cộng điểm nếu đã max
+        }
     }
 
     // --- Phương thức áp dụng hiệu ứng từ Item FlameItem ---
     // Được gọi từ FlameItem.applyEffect()
     public void increaseFlameLength() {
-        flameLength++; // Tăng độ dài ngọn lửa
-        System.out.println("Collected FlameItem! New Flame Length: " + flameLength); // Log
-        // TODO: Giới hạn độ dài ngọn lửa tối đa tuyệt đối (ví dụ: flameLength không quá 10)
+        if(flameLength<MAX_ALLOWED_FLAMES){
+            flameLength++;
+            System.out.println("Collected FlameItem! New Flame Length: " + flameLength);
+        }
+        else {
+            System.out.println("Max flame length reached (" + MAX_ALLOWED_FLAMES + ").");
+            // TODO: Âm thanh báo max / Cộng điểm
+            gameManager.addScore(50);
+        }
+
     }
 
     // --- Phương thức áp dụng hiệu ứng từ Item SpeedItem ---
     // Được gọi từ SpeedItem.applyEffect()
     public void increaseSpeed() {
-        speed += 50.0; // Tăng tốc độ thêm một lượng cố định (ví dụ: 50.0 pixel/giây)
-        System.out.println("Collected SpeedItem! New Speed: " + speed); // Log
+         if(speed<MAX_ALLOWED_SPEED){
+             speed+=50;
+             speed = Math.min(speed, MAX_ALLOWED_SPEED);
+             System.out.println("Collected SpeedItem! New Speed: " + speed); // Log
+         // TODO: Âm thanh power-up
+         }
+         else{
+             System.out.println("Max speed reached (" + MAX_ALLOWED_SPEED + ").");
+             // TODO: Âm thanh báo max / Cộng điểm
+              gameManager.addScore(50);
+
+         }
+
         // TODO: Giới hạn tốc độ tối đa tuyệt đối (ví dụ: speed không quá 250)
     }
 
