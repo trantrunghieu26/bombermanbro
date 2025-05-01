@@ -4,6 +4,7 @@ import com.example.bomberman.Bomberman;
 import com.example.bomberman.Map.Map; // Cần import lớp Map
 import com.example.bomberman.Map.Tile; // Cần import lớp Tile
 import com.example.bomberman.Map.TileType; // Cần import lớp TileType
+import com.example.bomberman.entities.Items.Item;
 import com.example.bomberman.graphics.Sprite; // Cần import Sprite
 import com.example.bomberman.graphics.Animation; // Cần import lớp Animation
 import javafx.scene.canvas.GraphicsContext;
@@ -33,7 +34,10 @@ public class Bomb {
     //--- đá bom---
     private boolean isKicked = false;
     private Direction kickDirection = Direction.NONE;
-    private double kickSpeed = 100;
+    private double kickSpeed = 100;// bo cung duoc
+    public static final double KICK_SPEED_CONSTANT = 200.0; // << GIÁ TRỊ TỐC ĐỘ ĐÁ NẰM Ở ĐÂY
+
+    private Bomberman gameManager;
     // Trạng thái của Bom
     private boolean exploded = false; // Cờ cho biết bom đã nổ chưa
     private boolean active = true; // Cờ cho biết bom còn hoạt động không (chưa nổ và chưa biến mất)
@@ -54,12 +58,13 @@ public class Bomb {
 
 
     // Constructor
-    public Bomb(int startGridX, int startGridY, int flameLength, Player owner, Map map) {
+    public Bomb(int startGridX, int startGridY, int flameLength, Player owner, Map map,Bomberman gameManager) {
         this.gridX = startGridX;
         this.gridY = startGridY;
         // Đặt bom vào góc trên bên trái của ô lưới
         this.pixelX = gridX * Sprite.SCALED_SIZE;
         this.pixelY = gridY * Sprite.SCALED_SIZE;
+        this.gameManager=gameManager;
 
         this.flameLength = flameLength;
         this.owner = owner; // Lưu Player đã đặt bom
@@ -80,10 +85,15 @@ public class Bomb {
     // --- Phương thức được gọi bởi Vòng lặp Game (AnimationTimer) ---
 
     // Phương thức cập nhật trạng thái mỗi frame
+    // In class Bomb
     public void update(double deltaTime) {
         if (!active) {
             return; // Nếu bom không còn hoạt động, không làm gì cả
-        } if (isKicked) {
+        }
+
+        boolean stoppedKickingThisFrame = false; // Biến cục bộ để theo dõi xem có nên dừng đá trong frame này không
+
+        if (isKicked) {
             double deltaPixelX = 0;
             double deltaPixelY = 0;
 
@@ -94,46 +104,122 @@ public class Bomb {
                 case LEFT: deltaPixelX = -kickSpeed * deltaTime; break;
                 case RIGHT: deltaPixelX = kickSpeed * deltaTime; break;
                 case NONE:
-                    isKicked = false; // Dừng đá nếu hướng là NONE (không xảy ra nếu player đá đúng hướng)
+                    // Trường hợp này không nên xảy ra thường xuyên nếu startKicking đúng,
+                    // nhưng để an toàn thì đánh dấu dừng lại
+                    stoppedKickingThisFrame = true;
                     break;
             }
 
-            if (isKicked) { // Chỉ xử lý tiếp nếu vẫn đang bị đá
+            // Chỉ kiểm tra va chạm nếu bom vẫn đang được lệnh đá (hướng khác NONE)
+            if (!stoppedKickingThisFrame) {
                 double nextPixelX = pixelX + deltaPixelX;
                 double nextPixelY = pixelY + deltaPixelY;
 
-                // Kiểm tra va chạm với Tile (Tường, Gạch) tại vị trí tiếp theo
-                boolean tileCollision = checkCollisionWithTiles(nextPixelX, nextPixelY); // Sử dụng phương thức mới
+                // --- KIỂM TRA CÁC LOẠI VA CHẠM CÓ THỂ CHẶN BOM ---
 
-                if (!tileCollision) {
-                    // Nếu không va chạm với Tile, cập nhật vị trí pixel
+                // 1. Kiểm tra va chạm với Tile (Tường, Gạch)
+                boolean tileCollision = checkCollisionWithTiles(nextPixelX, nextPixelY);
+                if (tileCollision) {
+                    stoppedKickingThisFrame = true; // Dừng lại do va chạm Tile
+                    System.out.println("Bomb stopped kicking due to tile collision at (" + gridX + ", " + gridY + ")");
+                }
+
+                // 2. Kiểm tra va chạm với Bom khác (chỉ nếu chưa bị chặn bởi Tile)
+                if (!stoppedKickingThisFrame && gameManager != null) { // Đảm bảo gameManager không null
+                    List<Bomb> otherBombs = gameManager.getBombs(); // Lấy danh sách bom từ GameManager
+                    for (Bomb otherBomb : otherBombs) {
+                        // Bỏ qua chính nó và các bom không active
+                        if (otherBomb == this || !otherBomb.isActive()) {
+                            continue;
+                        }
+
+                        // Kiểm tra va chạm AABB (vị trí tiếp theo của bom này vs vị trí hiện tại của bom khác)
+                        double bombSize = Sprite.SCALED_SIZE;
+                        double otherBombLeft = otherBomb.getPixelX();
+                        double otherBombRight = otherBomb.getPixelX() + bombSize;
+                        double otherBombTop = otherBomb.getPixelY();
+                        double otherBombBottom = otherBomb.getPixelY() + bombSize;
+
+                        double nextLeft = nextPixelX;
+                        double nextRight = nextPixelX + bombSize;
+                        double nextTop = nextPixelY;
+                        double nextBottom = nextPixelY + bombSize;
+
+                        boolean overlap = nextRight > otherBombLeft && nextLeft < otherBombRight &&
+                                nextBottom > otherBombTop && nextTop < otherBombBottom;
+
+                        if (overlap) {
+                            stoppedKickingThisFrame = true; // Dừng lại do va chạm Bom khác
+                            System.out.println("Bomb stopped kicking due to collision with another bomb at (" + otherBomb.getGridX() + ", " + otherBomb.getGridY() + ")");
+                            break; // Đã tìm thấy va chạm, không cần kiểm tra bom khác nữa
+                        }
+                    }
+                }
+
+                // --- KIỂM TRA VA CHẠM KHÔNG CHẶN BOM ---
+
+                // 3. Kiểm tra va chạm với Item (không làm dừng bom)
+                if (gameManager != null) { // Vẫn kiểm tra va chạm Item dù bom có bị dừng hay không
+                    List<Item> itemsOnMap = gameManager.getItems(); // Lấy danh sách Item từ GameManager
+                    for (Item item : itemsOnMap) {
+                        if (!item.isActive()) {
+                            continue;
+                        }
+
+                        // Kiểm tra va chạm AABB (vị trí tiếp theo của bom này vs vị trí hiện tại của item)
+                        double bombSize = Sprite.SCALED_SIZE; // Giả sử item cùng kích thước
+                        double itemLeft = item.getPixelX();
+                        double itemRight = item.getPixelX() + bombSize;
+                        double itemTop = item.getPixelY();
+                        double itemBottom = item.getPixelY() + bombSize;
+
+                        double nextLeft = nextPixelX;
+                        double nextRight = nextPixelX + bombSize;
+                        double nextTop = nextPixelY;
+                        double nextBottom = nextPixelY + bombSize;
+
+                        boolean overlap = nextRight > itemLeft && nextLeft < itemRight &&
+                                nextBottom > itemTop && nextTop < itemBottom;
+
+                        if (overlap) {
+                            // Bom trượt qua Item, không cần làm gì đặc biệt ở đây.
+                            // Có thể thêm log nếu muốn:
+                            // System.out.println("Kicked bomb sliding over item at (" + item.getGridX() + ", " + item.getGridY() + ")");
+                        }
+                    }
+                }
+
+                // --- QUYẾT ĐỊNH CẬP NHẬT VỊ TRÍ HAY DỪNG LẠI ---
+                if (!stoppedKickingThisFrame) {
+                    // Nếu không có va chạm nào chặn lại, CẬP NHẬT vị trí pixel
                     pixelX = nextPixelX;
                     pixelY = nextPixelY;
                     // Cập nhật vị trí lưới dựa trên vị trí pixel mới
+                    // Math.round thường cho kết quả mượt hơn floor/ceil khi chuyển từ pixel sang grid
                     gridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
                     gridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
-                } else {
-                    // Nếu va chạm với Tile, dừng đá
-                    isKicked = false;
-                    kickDirection = Direction.NONE; // Reset hướng đá
-                    kickSpeed = 0; // Dừng tốc độ đá
-                    System.out.println("Bomb stopped kicking due to tile collision at (" + gridX + ", " + gridY + ")"); // Log
-                    // TODO: Tùy chọn: Điều chỉnh vị trí bom để nó nằm sát cạnh vật cản (giống Player neo lại)
                 }
+                // Nếu stoppedKickingThisFrame là true, không làm gì cả (vị trí không đổi)
+
+            } // Kết thúc khối if (!stoppedKickingThisFrame) để kiểm tra va chạm
+
+            // Nếu bom bị dừng lại trong frame này (do va chạm hoặc hướng NONE)
+            if (stoppedKickingThisFrame) {
+                isKicked = false; // Đặt lại trạng thái không bị đá
+                kickDirection = Direction.NONE; // Reset hướng đá
+                kickSpeed = 0; // Đặt tốc độ về 0 để chắc chắn nó dừng lại
+                // Optional: Thêm logic neo bom sát cạnh vật cản nếu muốn (phức tạp hơn)
             }
-            // Quan trọng: Không return ở đây. Bom vẫn đếm giờ nổ ngay cả khi đang bị đá.
-        }
+            // Bom vẫn tiếp tục đếm giờ nổ ngay cả khi bị đá hoặc đã dừng lại
 
+        } // Kết thúc khối if(isKicked)
 
-        // Tăng thời gian đếm ngược
+        // Tăng thời gian đếm ngược (Luôn thực hiện dù có bị đá hay không)
         explosionTimer += deltaTime;
 
         // --- Cập nhật trạng thái animation ---
         if (currentAnimation != null) {
             animationTimer += deltaTime;
-            // Cập nhật frame animation hiện tại (Bomb chỉ có animation đếm ngược)
-            // Sprite currentSpriteFrame = currentAnimation.getFrame(animationTimer); // Lấy frame để vẽ
-            // TODO: Nếu có animation nổ, chuyển animation khi nổ
         }
 
         // --- Kiểm tra xem đã đến lúc nổ chưa ---
@@ -141,12 +227,7 @@ public class Bomb {
             explode(); // Kích hoạt vụ nổ
         }
 
-        // TODO: Xử lý animation nổ và khi nào bom biến mất hoàn toàn
-        // Nếu đã nổ và animation nổ đã kết thúc, đặt active = false để loại bỏ bom
-        // if (exploded && explosionAnimation.isFinished(animationTimer)) {
-        //    active = false;
-        //    // TODO: Thông báo cho Player biết bom đã nổ để tăng lại số bom có thể đặt
-        // }
+        // ... (Phần xử lý sau khi nổ nếu có, ví dụ đợi animation nổ kết thúc) ...
     }
 
     // Phương thức được gọi khi bom nổ

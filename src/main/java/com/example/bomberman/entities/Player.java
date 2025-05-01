@@ -195,7 +195,7 @@ public class Player {
 
 
             // Tạo một đối tượng Bomb mới. Truyền gameMap để Bomb có thể kiểm tra va chạm Tile khi bị đá.
-            Bomb newBomb = new Bomb(bombGridX, bombGridY, flameLength, this, map); // Truyền owner (this) và map
+            Bomb newBomb = new Bomb(bombGridX, bombGridY, flameLength, this, map,this.gameManager); // Truyền owner (this) và map
 
             // Thêm bom vào danh sách quản lý bom của game thông qua gameManager
             if (gameManager != null) {
@@ -221,7 +221,7 @@ public class Player {
 
     // Phương thức được gọi bởi Bomb khi nổ để Player có thể đặt thêm bom
     public void increaseBombCount() {
-        // Tăng số bom hiện có, không vượt quá số bom tối đa (maxBombs)
+
         currentBombs = Math.min(currentBombs + 1, maxBombs);
         System.out.println("Bomb count increased after explosion. Current bombs: " + currentBombs + " (Max: " + maxBombs + ")"); // Log
     }
@@ -649,6 +649,7 @@ public class Player {
 
         // TODO: Logic vẽ các yếu tố UI cho Player (số mạng, vv) - Thường vẽ ở lớp UI hoặc Bomberman
     }
+    public Bomberman getGameManager() { return gameManager; }
 
     // TODO: Phương thức nhận sát thương
     // public void takeDamage(int damage) {

@@ -491,7 +491,6 @@ public class Bomberman extends Application {
             System.err.println("Warning: gameMap is null during render.");
         }
         renderBombs(gc);
-
         renderItems(gc);
         renderTemporaryAnimations(gc);
 
@@ -499,17 +498,12 @@ public class Bomberman extends Application {
         // TODO: Vẽ các thực thể khác (Enemies)
         // renderEnemies(gc);
 
-        // Vẽ Player (chỉ nếu player không null)
         if (player != null) {
             player.render(gc);
         } else {
             System.err.println("Warning: player is null during render.");
         }
-
         renderFlames(gc);
-
-
-        // TODO: Vẽ các yếu tố UI (điểm số, thời gian, ...)
         renderUI(gc);
     }
     private void updateGame(double deltaTime){
@@ -531,6 +525,7 @@ public class Bomberman extends Application {
         updateItems(deltaTime);
         updateTemporaryAnimations(deltaTime);
         if (!portalActivated) {
+            //sửa lại điều kiện portal ở đây;
             boolean activationConditionMet = true; // Điều kiện test
             if (activationConditionMet) {
                 portalActivated = true;
@@ -595,10 +590,10 @@ private void handleKickBombTrigger(){
         // Get the bomb and direction stored by checkCollision
         Bomb bombToKick = player.kickableBombPending;
         Direction directionToKick = player.kickDirectionPending;
-        double kickSpeed = player.getSpeed(); // Or fixed value
+         // Or fixed value
 
         // Trigger the kick
-        bombToKick.startKicking(directionToKick, kickSpeed);
+        bombToKick.startKicking(directionToKick, Bomb.KICK_SPEED_CONSTANT);
 
         // IMPORTANT: Reset the pending state immediately after triggering
         player.kickableBombPending = null;
@@ -1102,6 +1097,9 @@ private void handleKickBombTrigger(){
         for (Item item : items) {
             item.render(gc);
         }
+    }
+    public List<Item> getItems() {
+        return this.items; // 'items' là thuộc tính List<Item> bạn đã khai báo ở đầu lớp Bomberman
     }
 
     public boolean isPortalActivated() {
