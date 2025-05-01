@@ -1,5 +1,6 @@
 package com.example.bomberman.entities;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.graphics.Sprite; // Cần import Sprite
 import com.example.bomberman.graphics.Animation; // Cần import Animation
 import javafx.scene.canvas.GraphicsContext; // Cần GraphicsContext để vẽ
@@ -158,7 +159,7 @@ public class Flame {
             // Cần điều chỉnh vị trí vẽ nếu sprite có kích thước khác Sprite.SCALED_SIZE
             // hoặc nếu bạn muốn căn giữa sprite.
             // Hiện tại đang vẽ góc trên bên trái tại pixelX, pixelY
-            gc.drawImage(currentImage, pixelX, pixelY);
+            gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT);
         }
 
         // TODO: Logic vẽ các hiệu ứng khác của Flame

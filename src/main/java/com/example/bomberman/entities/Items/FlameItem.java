@@ -85,10 +85,11 @@ public class FlameItem extends Item {
     public void applyEffect(Player player) {
         if (isActive()) { // Chỉ áp dụng hiệu ứng nếu vật phẩm còn active
             System.out.println("FlameItem collected by Player at (" + gridX + ", " + gridY + "). Increasing flame length."); // Log
-
-            // TODO: Gọi phương thức trong Player để tăng độ dài ngọn lửa
-            // Cần thêm phương thức applyFlameItemEffect() vào lớp Player
-            player.increaseFlameLength(); // Gọi phương thức đã thêm vào Player
+            player.increaseFlameLength();
+            Bomberman game = player.getGameManager();
+            if (game != null) {
+                game.addScore(50); // Ví dụ: cộng 50 điểm cho Flame Item
+            }
 
             setActive(false); // Đánh dấu active = false để vật phẩm biến mất sau khi nhặt
             // TODO: Phát âm thanh nhặt item

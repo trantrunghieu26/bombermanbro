@@ -86,7 +86,11 @@ public class LifeItem extends Item {
 
             // TODO: Gọi phương thức trong Player để tăng số mạng
             // Cần thêm phương thức applyLifeItemEffect() vào lớp Player
-            player.increaseLives(); // Gọi phương thức đã thêm vào Player
+            player.increaseLives();
+            Bomberman game = player.getGameManager();
+            if (game != null) {
+                game.addScore(50); // Ví dụ: cộng 50 điểm cho Flame Item
+            }/// Gọi phương thức đã thêm vào Player
 
             setActive(false); // Đánh dấu active = false để vật phẩm biến mất sau khi nhặt
             // TODO: Phát âm thanh nhặt item

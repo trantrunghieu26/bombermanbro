@@ -22,30 +22,16 @@ public class KickBombItem extends Item {
         // --- Khởi tạo animation cho KickBombItem ---
         double frameDuration = 0.2; // Thời gian hiển thị mỗi frame (ví dụ: 0.2 giây). HÃY ĐIỀU CHỈNH.
         boolean loop = true; // Animation lặp lại.
-
-        // Sử dụng các Sprite cho animation của KickBombItem.
-        // Nếu chỉ có 1 sprite (powerupBombpass), bạn có thể lặp lại sprite đó.
-        // Nếu có sprite nhấp nháy khác (ví dụ: powerupBombpass_alt), bạn có thể dùng cả hai.
-        animation = new Animation(frameDuration, loop, Sprite.powerupKickBomb, Sprite.powerupKickBomb); // <-- Animation lặp lại sprite chính
-        // TODO: Nếu có sprite nhấp nháy khác, thay dòng trên bằng:
-        // animation = new Animation(frameDuration, loop, Sprite.powerupBombpass, Sprite.powerupBombpass_alt);
+        animation = new Animation(frameDuration, loop, Sprite.powerupKickBomb, Sprite.powerupKickBomb);
     }
 
-    // --- Override phương thức update để xử lý animation và các logic khác ---
     @Override
     public void update(double deltaTime) {
-        // TODO: Nếu lớp Item base có logic update chung cần thiết (ví dụ: timer tồn tại), hãy gọi super.update(deltaTime);
          super.update(deltaTime); // <-- Gọi lớp cha nếu cần
 
-        // --- Cập nhật bộ đếm thời gian animation ---
-        // Chỉ cập nhật timer nếu vật phẩm còn active
-        if (isActive()) { // isActive() là phương thức từ lớp Item base
+        if (isActive()) {
             animationTimer += deltaTime;
-            // TODO: Nếu Item có thời gian tồn tại giới hạn, kiểm tra ở đây
-            // Ví dụ: if (animationTimer > maxItemLifetime) { setActive(false); } // setActive() từ Item base
         }
-
-        // TODO: Thêm các logic update đặc thù khác cho KickBombItem nếu có
     }
 
     // --- Override phương thức render để vẽ frame animation hiện tại ---

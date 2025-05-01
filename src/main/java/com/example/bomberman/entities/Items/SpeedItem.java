@@ -84,6 +84,10 @@ public class SpeedItem extends Item {
         if (isActive()) { // Chỉ áp dụng hiệu ứng nếu vật phẩm còn active
             System.out.println("SpeedItem collected by Player at (" + gridX + ", " + gridY + "). Increasing speed."); // Log
             player.increaseSpeed();
+            Bomberman game = player.getGameManager();
+            if (game != null) {
+                game.addScore(50); // Ví dụ: cộng 50 điểm cho Flame Item
+            }
             setActive(false); // Đánh dấu active = false để vật phẩm biến mất sau khi nhặt
             // TODO: Phát âm thanh nhặt item
         }

@@ -1,5 +1,6 @@
 package com.example.bomberman.entities; // Đặt trong package entities hoặc một package riêng cho hiệu ứng
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
 import javafx.scene.canvas.GraphicsContext;
@@ -68,7 +69,7 @@ public class    TemporaryAnimation {
 
             if (currentImage != null) {
                 // Vẽ hình ảnh animation tại vị trí pixel
-                gc.drawImage(currentImage, pixelX, pixelY);
+                gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT);
             }
         }
     }
