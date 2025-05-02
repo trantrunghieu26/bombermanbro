@@ -67,6 +67,22 @@ public class InputHandler {
                         if (gameManager.getPrimaryStage() != null) gameManager.getPrimaryStage().close();
                     }
                     break;
+                case GAME_OVER:
+                    if (code == KeyCode.ENTER) {
+                        // *** THÊM DÒNG NÀY ĐỂ DEBUG ***
+                        System.out.println("GAME_OVER: ENTER detected, attempting to call restartGame...");
+                        gameManager.restartGame();
+                    }
+                    if (code == KeyCode.ESCAPE) {
+                        // *** THÊM DÒNG NÀY ĐỂ DEBUG ***
+                        System.out.println("GAME_OVER: ESCAPE detected, attempting to close stage...");
+                        if (gameManager.getPrimaryStage() != null) {
+                            gameManager.getPrimaryStage().close();
+                        } else {
+                            System.out.println("GAME_OVER: primaryStage is null!"); // Kiểm tra thêm
+                        }
+                    }
+                    break;
             }
 
         });
