@@ -105,7 +105,7 @@ public class InputHandler {
     // Phương thức helper kiểm tra có phải phím di chuyển không
     private boolean isMovementKey(KeyCode code) {
         return code == KeyCode.W || code == KeyCode.S || code == KeyCode.A || code == KeyCode.D
-        ||code == KeyCode.UP || code == KeyCode.DOWN || code == KeyCode.LEFT || code == KeyCode.RIGHT;
+                ||code == KeyCode.UP || code == KeyCode.DOWN || code == KeyCode.LEFT || code == KeyCode.RIGHT;
     }
 
     // Cập nhật hướng di chuyển của Player dựa trên các phím đang được giữ

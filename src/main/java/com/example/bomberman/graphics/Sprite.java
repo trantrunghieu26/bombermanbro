@@ -59,9 +59,9 @@
         public static Sprite player_right_1 = new Sprite(SCALED_SIZE, 1, 1, SpriteSheet.tiles2, 11, 16);
         public static Sprite player_right_2 = new Sprite(SCALED_SIZE, 1, 2, SpriteSheet.tiles2, 12, 16);
 
-        public static Sprite player_dead1 = new Sprite(DEFAULT_SIZE, 4, 2, SpriteSheet.tiles2, 14, 16);
-        public static Sprite player_dead2 = new Sprite(DEFAULT_SIZE, 5, 2, SpriteSheet.tiles2, 13, 15);
-        public static Sprite player_dead3 = new Sprite(DEFAULT_SIZE, 6, 2, SpriteSheet.tiles2, 16, 16);
+        public static Sprite player_dead1 = new Sprite(SCALED_SIZE, 4, 2, SpriteSheet.tiles2, 14, 16);
+        public static Sprite player_dead2 = new Sprite(SCALED_SIZE, 5, 2, SpriteSheet.tiles2, 13, 15);
+        public static Sprite player_dead3 = new Sprite(SCALED_SIZE, 6, 2, SpriteSheet.tiles2, 16, 16);
 
 
 
