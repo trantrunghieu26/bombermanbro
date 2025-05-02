@@ -57,18 +57,13 @@ public class InputHandler {
                     }
                     break;
                 case MENU:
-                    if (code == KeyCode.ENTER) {
-                        gameManager.startGame(); // << Gọi hàm mới trong Bomberman
-                    }
-                    if (code == KeyCode.ESCAPE) { // Thoát game từ Menu
-                        if (gameManager.getPrimaryStage() != null) gameManager.getPrimaryStage().close();
-                    }
-                    break;
-                case GAME_OVER:
-                    if (code == KeyCode.ENTER) {
-                        gameManager.restartGame(); // << Gọi hàm mới trong Bomberman
-                    }
-                    if (code == KeyCode.ESCAPE) {
+                    if (code == KeyCode.UP || code == KeyCode.W) {
+                        gameManager.navigateMenuUp(); // Gọi hàm của Bomberman
+                    } else if (code == KeyCode.DOWN || code == KeyCode.S) {
+                        gameManager.navigateMenuDown(); // Gọi hàm của Bomberman
+                    } else if (code == KeyCode.ENTER) {
+                        gameManager.selectMenuOption(); // Gọi hàm của Bomberman
+                    } else if (code == KeyCode.ESCAPE) {
                         if (gameManager.getPrimaryStage() != null) gameManager.getPrimaryStage().close();
                     }
                     break;

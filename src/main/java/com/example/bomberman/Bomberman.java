@@ -16,6 +16,8 @@ import com.example.bomberman.graphics.Sprite;
 import com.example.bomberman.graphics.Animation; // Import lớp Animation
 
 import com.example.bomberman.Input.InputHandler;
+
+import java.io.IOException;
 import java.io.InputStream;
 
 
@@ -56,6 +58,12 @@ public class Bomberman extends Application {
     private Stage primaryStage;
     private Font uiFont;
 
+    //BACKGROUND
+    private String[] menuOptions = {"Start Game", "Settings", "Music: ON"};
+    private int selectedOptionIndex = 0;
+    private Image menuBackground;
+    private Image handCursorImage; // Thêm biến này nếu load con trỏ riêng
+    private boolean isMusicOn = true;
 
 
     // --- Quản lý màn chơi ---
@@ -209,38 +217,117 @@ public class Bomberman extends Application {
         gc.fillText(timeText, xPositionTime, yPositionText);
 
     }
+    //MENUGAME Ở ĐÂY NHA
+
     private void renderMenu(GraphicsContext gc) {
         if (gc == null || canvas == null) return;
 
         // --- Vẽ nền (ví dụ: đen) ---
-        gc.setFill(Color.BLACK);
-        gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
-
+        if (menuBackground != null) {
+            gc.drawImage(menuBackground, 0, 0, canvas.getWidth(), canvas.getHeight());
+        } else {
+            gc.setFill(Color.BLACK);
+            gc.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        }
         // --- Vẽ Tiêu đề Game ---
-        String title = "BOMBERMAN";
-        gc.setFill(Color.YELLOW);
-        // Chọn Font lớn cho tiêu đề
-        Font titleFont = (this.uiFont != null) ? Font.font(this.uiFont.getFamily(), 60) : Font.font("Arial", 60);
+        gc.setFill(Color.WHITE); // Đổi màu nếu cần
+        Font titleFont = Font.font(uiFont.getFamily(), 60); // Lấy font đã load
         gc.setFont(titleFont);
-        // Căn giữa tiêu đề
-        Text titleNode = new Text(title);
-        titleNode.setFont(titleFont);
+        String title = "BOMBERMAN";
+        Text titleNode = new Text(title); titleNode.setFont(titleFont);
         double titleWidth = titleNode.getLayoutBounds().getWidth();
-        gc.fillText(title, (canvas.getWidth() / 2.0) - (titleWidth / 2.0), 150); // Điều chỉnh Y nếu cần
+        gc.fillText(title, (canvas.getWidth() / 2.0) - (titleWidth / 2.0), 150); // Căn giữa
 
-        // --- Vẽ tùy chọn "Start Game" ---
-        String startText = "Press ENTER to Start";
-        gc.setFill(Color.WHITE);
-        // Dùng font nhỏ hơn
-        Font optionFont = (this.uiFont != null) ? Font.font(this.uiFont.getFamily(), 24) : Font.font("Arial", 24);
-        gc.setFont(optionFont);
-        // Căn giữa
-        Text startNode = new Text(startText);
-        startNode.setFont(optionFont);
-        double startWidth = startNode.getLayoutBounds().getWidth();
-        gc.fillText(startText, (canvas.getWidth() / 2.0) - (startWidth / 2.0), 300); // Điều chỉnh Y
+        // 3. Vẽ các lựa chọn
+        gc.setFont(uiFont); // Đặt lại font cho lựa chọn
+        double startY = 300;
+        double spacing = 40;
 
-        // TODO: Thêm các tùy chọn khác như "High Scores", "Exit" nếu muốn
+        for (int i = 0; i < menuOptions.length; i++) {
+            // Cập nhật text Music ON/OFF
+            if (menuOptions[i].startsWith("Music:")) {
+                menuOptions[i] = "Music: " + (isMusicOn ? "ON" : "OFF");
+            }
+
+            String optionText = menuOptions[i];
+            // Đo chiều rộng text để căn giữa hoặc tính vị trí con trỏ
+            Text textNode = new Text(optionText); textNode.setFont(uiFont);
+            double textWidth = textNode.getLayoutBounds().getWidth();
+            double textHeight = textNode.getLayoutBounds().getHeight(); // Lấy chiều cao để căn con trỏ Y
+
+            double xPosition = (canvas.getWidth() / 2.0) - (textWidth / 2.0); // Căn giữa
+            double yPosition = startY + i * spacing;
+
+            // Highlight
+            if (i == selectedOptionIndex) {
+                gc.setFill(Color.YELLOW); // Màu khi được chọn
+            } else {
+                gc.setFill(Color.WHITE); // Màu bình thường
+            }
+            gc.fillText(optionText, xPosition, yPosition);
+
+            // 4. Vẽ con trỏ nếu đây là lựa chọn được chọn và ảnh con trỏ đã load
+            if (i == selectedOptionIndex && handCursorImage != null) {
+                // Scale con trỏ lên nếu muốn (ví dụ: gấp đôi kích thước gốc 16x16 -> 32x32)
+                double cursorDrawWidth = handCursorImage.getWidth() * 2; // Ví dụ scale x2
+                double cursorDrawHeight = handCursorImage.getHeight() * 2; // Ví dụ scale x2
+
+                // Tính toán vị trí X: Bên trái của chữ
+                double cursorX = xPosition - cursorDrawWidth - 10; // Cách chữ 10px
+
+                // Tính toán vị trí Y: Căn giữa theo chiều cao của chữ
+                // Baseline của chữ ở yPosition, cần dịch lên một nửa chiều cao chữ rồi trừ nửa chiều cao con trỏ
+                double cursorY = yPosition - textHeight * 0.5 - cursorDrawHeight * 0.5; // Căn giữa Y (ước lượng)
+
+                // Vẽ con trỏ với kích thước đã scale
+                gc.drawImage(handCursorImage, cursorX, cursorY, cursorDrawWidth, cursorDrawHeight);
+            }
+        }
+    }
+    public void navigateMenuUp() {
+        if (currentState == GameState.MENU) {
+            selectedOptionIndex--;
+            if (selectedOptionIndex < 0) {
+                selectedOptionIndex = menuOptions.length - 1;
+            }
+            // TODO: Play menu navigation sound
+        }
+    }
+
+    public void navigateMenuDown() {
+        if (currentState == GameState.MENU) {
+            selectedOptionIndex++;
+            if (selectedOptionIndex >= menuOptions.length) {
+                selectedOptionIndex = 0;
+            }
+            // TODO: Play menu navigation sound
+        }
+    }
+
+    public void selectMenuOption() {
+        if (currentState == GameState.MENU) {
+            // TODO: Play menu selection sound
+            switch (selectedOptionIndex) {
+                case 0: // Start Game
+                    startGame(); // Hàm startGame đã có sẵn
+                    break;
+                case 1: // Settings
+                    System.out.println("Settings selected (Not implemented)");
+                    // currentState = GameState.SETTINGS; // Nếu có state Settings
+                    break;
+                case 2: // Music
+                    toggleMusic(); // Gọi hàm toggleMusic
+                    break;
+            }
+        }
+    }
+
+    public void toggleMusic() {
+        // Hàm này có thể gọi trực tiếp từ InputHandler hoặc từ selectMenuOption
+        isMusicOn = !isMusicOn;
+        System.out.println("Music toggled: " + isMusicOn);
+        // TODO: Thêm logic bật/tắt nhạc thực tế ở đây
+        // Ví dụ: if (isMusicOn) musicPlayer.play(); else musicPlayer.stop();
     }
     private void renderGameOverScreen(GraphicsContext gc) {
         if (gc == null || canvas == null) return;
@@ -406,6 +493,33 @@ public class Bomberman extends Application {
             System.err.println("Error loading custom font: " + e.getMessage());
             e.printStackTrace();
             this.uiFont = Font.font("Arial", 16); // Fallback quan trọng
+        }
+        // Ví dụ trong constructor hoặc phương thức loadResources()
+        try {
+            InputStream bgStream = getClass().getResourceAsStream("/textures/nền.png"); // Sửa đường dẫn nếu cần
+            if (bgStream != null) {
+                menuBackground = new Image(bgStream);
+                bgStream.close();
+                System.out.println("Menu background loaded.");
+            } else {
+                System.err.println("Could not find menu background resource stream.");
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading menu background: " + e.getMessage());
+            e.printStackTrace();
+        }
+        try {
+            InputStream hcStream = getClass().getResourceAsStream("/textures/contro2.png"); // Đặt tên file đúng
+            if (hcStream != null) {
+                handCursorImage = new Image(hcStream); // Load ảnh gốc
+                hcStream.close();
+                System.out.println("Hand cursor loaded.");
+            } else {
+                System.err.println("Could not find hand cursor resource stream.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading hand cursor: " + e.getMessage());
+            e.printStackTrace();
         }
 
         loadLevel(currentLevel);
