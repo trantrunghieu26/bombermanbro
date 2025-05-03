@@ -30,11 +30,11 @@ public class MenuController implements SceneController {
     @Override
     public void render(GraphicsContext gc) {
         // --- Lấy tài nguyên từ Bomberman ---
-        Image menuBackground = bomberman.getMenuBackground(); // Cần getter trong Bomberman
-        Image handCursorImage = bomberman.getHandCursorImage(); // Cần getter trong Bomberman
-        Font uiFont = bomberman.getUiFont(); // Cần getter trong Bomberman
-        double canvasWidth = bomberman.getCanvasWidth(); // Cần getter trong Bomberman
-        double canvasHeight = bomberman.getCanvasHeight(); // Cần getter trong Bomberman
+        Image menuBackground = bomberman.getMenuBackground();
+        Image handCursorImage = bomberman.getHandCursorImage();
+        Font uiFont = bomberman.getUiFont();
+        double canvasWidth = bomberman.getCanvasWidth();
+        double canvasHeight = bomberman.getCanvasHeight();
 
         if (gc == null || uiFont == null) return;
 

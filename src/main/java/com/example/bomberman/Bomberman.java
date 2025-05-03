@@ -39,7 +39,7 @@ public class Bomberman extends Application {
     // Constants and Static Fields (Giữ nguyên)
     // =========================================================================
     public static final int UI_PANEL_HEIGHT = 32;
-    private static final double LEVEL_DURATION_SECONDS = 10.0; // Giá trị gốc
+    private static final double LEVEL_DURATION_SECONDS = 200.0; // Giá trị gốc
     private final int MAX_LEVEL = 10;
     // Các hằng số animation có thể giữ ở đây hoặc chuyển vào Controller tương ứng
     // private final double SCORE_ANIMATION_DURATION = 1.5;
@@ -63,7 +63,7 @@ public class Bomberman extends Application {
     private com.example.bomberman.Map.Map gameMap;
     private Player player;
     private final List<Bomb> bombs = new ArrayList<>();
-    private final List<Object> enemies = new ArrayList<>(); // TODO: Enemy
+    private final List<Enemy> enemies = new ArrayList<>(); // TODO: Enemy
     private final List<Item> items = new ArrayList<>();
     private final List<Flame> flames = new ArrayList<>();
     private final List<TemporaryAnimation> temporaryAnimations = new ArrayList<>();
@@ -106,7 +106,6 @@ public class Bomberman extends Application {
         canvas = new Canvas(1, 1);
         gc = canvas.getGraphicsContext2D();
 
-
         Group root = new Group(canvas);
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
@@ -116,13 +115,8 @@ public class Bomberman extends Application {
             // Có thể hiển thị Alert lỗi ở đây
             return; // Không thể tiếp tục nếu level đầu lỗi
         }
-
-        // InputHandler cần Scene, Player (ban đầu là null), và Bomberman
-        // Player sẽ được gán sau khi loadLevel thành công
-        inputHandler = new InputHandler(scene, null, this);
-
+        inputHandler = new InputHandler(scene, player, this);
         primaryStage.show();
-
         // --- Khởi tạo trạng thái ban đầu ---
         switchController(GameState.MENU); // Bắt đầu ở Menu
 
@@ -257,10 +251,8 @@ public class Bomberman extends Application {
                 if (this.player != null && this.gameMap != null) {
                     this.currentController = new PlayingController(this);
                 } else {
-                    System.err.println("Cannot switch to PLAYING state: Player or Map not loaded!");
-                    // Fallback về Menu
                     switchController(GameState.MENU);
-                    return; // Dừng việc chuyển state
+                    return;
                 }
                 break;
             case PAUSED:
@@ -414,11 +406,23 @@ public class Bomberman extends Application {
                         } // Bỏ qua nếu player đã tồn tại
                         break;
                     case '1': // Balloom
-                        // enemies.add(new Balloom(j, i, gameMap)); // TODO
+                        enemies.add(new Balloom(j, i, gameMap,this));
                         if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
                         System.out.println("Balloom placeholder at grid (" + j + ", " + i + ")");
                         break;
-                    // ... (Các case enemy khác tương tự) ...
+                    case '2':
+                        enemies.add(new Oneal(j, i, gameMap, this)); // Tạo Oneal
+                        if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                        System.out.println("Oneal created at grid (" + j + ", " + i + ")");
+                        break;
+                    case '3':
+                        enemies.add(new Doll(j,i,gameMap,this));
+                        if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                        break;
+                    case '4':
+                        enemies.add(new Ghost(j,i,gameMap,this));
+                        if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                        break;
                     case 'x': // Portal
                         if (portalGridX == -1) { portalGridX = j; portalGridY = i; }
                         break;
@@ -449,9 +453,13 @@ public class Bomberman extends Application {
                     addFlames(newFlames);
                 }
                 iterator.remove();
-                if (bomb.getOwner() != null) {
-                    // Giả định Player có increaseBombCount()
-                    bomb.getOwner().increaseBombCount();
+                Object owner = bomb.getOwner();
+                if (owner instanceof Player) {
+                    ((Player) owner).increaseBombCount();
+                } else if (owner instanceof Doll) { // Hoặc nếu bạn dùng owner = null cho bom của Doll
+                    ((Doll) owner).enemyBombExploded();
+                } else if (owner == null) {
+
                 }
             }
         }
@@ -484,6 +492,18 @@ public class Bomberman extends Application {
             if (!anim.isActive()) {
                 handleAnimationFinished(anim); // Gọi hàm xử lý item spawn
                 iterator.remove();
+            }
+        }
+    }
+    public void updateEnemies(double deltaTime) {
+        Iterator<Enemy> iterator = enemies.iterator();
+        while (iterator.hasNext()) {
+            Enemy enemy = iterator.next();
+            enemy.update(deltaTime);
+            // Xóa Enemy nếu animation chết đã hoàn thành
+            if (!enemy.isAlive() && enemy.getDyingTimer() >= enemy.getTimeToDie()) {
+                iterator.remove();
+                System.out.println("Removed dead enemy from list.");
             }
         }
     }
@@ -586,33 +606,90 @@ public class Bomberman extends Application {
             }
         }
     }
-    public void handlePortalTransition() { /* ... Code gốc ... */
+    public void handlePortalTransition(){
         if (player != null && player.isAlive() && portalActivated && portalGridX != -1) {
-            double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
-            double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
-            int playerGridX = (int) Math.floor(playerCenterX / Sprite.SCALED_SIZE);
-            int playerGridY = (int) Math.floor((playerCenterY - UI_PANEL_HEIGHT) / Sprite.SCALED_SIZE); // Dùng cách tính có UI Offset
+            int playerCurrentGridX = player.getGridX();
+            int playerCurrentGridY = player.getGridY();
 
-            if (playerGridX == portalGridX && playerGridY == portalGridY) {
-                if (levelTimeRemaining > 0) {
-                    addScore((int)(levelTimeRemaining * 2)); // Time bonus
+            if (playerCurrentGridX == portalGridX && playerCurrentGridY == portalGridY) {
+
+                System.out.println("Player entered portal! (Stored Grid Coordinates Match)");
+
+                if (levelTimeRemaining > 0) { // Cộng điểm thời gian nếu còn
+                    addScore((int)(levelTimeRemaining * 2));
+                    System.out.println("Added time bonus score.");
                 }
-                addScore(1000); // Level clear bonus
+                addScore(1000); // Cộng điểm qua màn cố định
+                System.out.println("Added level clear bonus score.");
 
-                currentLevel++;
-                if (currentLevel <= MAX_LEVEL) {
-                    // Yêu cầu load level mới và chuyển sang Playing
+                currentLevel++; // Tăng số level hiện tại
+
+                if (currentLevel <= MAX_LEVEL) { // Kiểm tra xem còn level để chơi không
+                    System.out.println("Loading next level: " + currentLevel);
                     requestLoadLevelAndSwitchState(currentLevel, GameState.PLAYING);
-                } else {
+                } else { // Đã hoàn thành level cuối cùng
                     System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
-                    // switchController(GameState.GAME_WON); // TODO: State game won
-                    if (primaryStage != null) primaryStage.close();
+                    // TODO: Chuyển sang trạng thái GAME_WON thay vì đóng cửa sổ
+                    if (primaryStage != null) {
+                        primaryStage.close(); // Đóng cửa sổ game
+                    }
                 }
-                // Không cần return vì switchController sẽ thay đổi controller
+            }
+        }
+    }
+    // Trong Bomberman.java
+    public void handleFlameEnemyCollisions() {
+        List<Flame> currentFlames = new ArrayList<>(flames); // Tránh ConcurrentModificationException
+        List<Enemy> currentEnemies = new ArrayList<>(enemies);
+
+        for (Flame flame : currentFlames) {
+            if (!flame.isActive()) continue;
+            for (Enemy enemy : currentEnemies) {
+                // Chỉ xử lý va chạm nếu Enemy còn sống
+                if (enemy.isAlive()) {
+                    // Kiểm tra va chạm AABB đơn giản giữa tâm Flame và tâm Enemy
+                    double flameCenterX = flame.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                    double flameCenterY = flame.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                    double enemyCenterX = enemy.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                    double enemyCenterY = enemy.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                    double dx = flameCenterX - enemyCenterX;
+                    double dy = flameCenterY - enemyCenterY;
+                    double distance = Math.sqrt(dx*dx + dy*dy);
+                    double collisionDistance = Sprite.SCALED_SIZE * 0.7; // Khoảng cách va chạm (điều chỉnh)
+
+                    if (distance < collisionDistance) {
+                        enemy.die(); // Gọi phương thức die() của Enemy
+                        // Flame không biến mất khi chạm Enemy
+                    }
+                }
             }
         }
     }
 
+    public void handlePlayerEnemyCollisions() {
+        if (player == null || !player.isAlive()) return;
+
+        List<Enemy> currentEnemies = new ArrayList<>(enemies);
+        for (Enemy enemy : currentEnemies) {
+            if (enemy.isAlive()) { // Chỉ va chạm với Enemy còn sống
+                double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                double enemyCenterX = enemy.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                double enemyCenterY = enemy.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                double dx = playerCenterX - enemyCenterX;
+                double dy = playerCenterY - enemyCenterY;
+                double distance = Math.sqrt(dx*dx + dy*dy);
+                double collisionDistance = Sprite.SCALED_SIZE * 0.8; // Khoảng cách va chạm (điều chỉnh)
+
+                if (distance < collisionDistance) {
+                    System.out.println("Player collided with an enemy!");
+                    // Player chết khi va chạm Enemy
+                    player.takeDamage(1);
+                    return;
+                }
+            }
+        }
+    }
     // =========================================================================
     // Rendering Components (Được gọi bởi các Controller)
     // =========================================================================
@@ -625,7 +702,7 @@ public class Bomberman extends Application {
         renderItems(gc);          // Items
         renderBombs(gc);          // Bombs
         renderTemporaryAnimations(gc); // Hiệu ứng nổ gạch,...
-        // renderEnemies(gc);     // TODO: Enemies
+        renderEnemies(gc);     // TODO: Enemies
         renderFlames(gc);         // Flames (có thể vẽ trên player?)
         if (player != null) player.render(gc); // Player
         // Vẽ UI luôn được gọi sau cùng bởi vòng lặp chính (handle) sau khi controller render
@@ -637,6 +714,11 @@ public class Bomberman extends Application {
     private void renderFlames(GraphicsContext gc) { for (Flame f : flames) f.render(gc); }
     private void renderItems(GraphicsContext gc) { for (Item i : items) i.render(gc); }
     private void renderTemporaryAnimations(GraphicsContext gc) { for (TemporaryAnimation ta : temporaryAnimations) ta.render(gc); }
+    private void renderEnemies(GraphicsContext gc) {
+        for (Enemy e : enemies) {
+            e.render(gc);
+        }
+    }
     private void renderUI(GraphicsContext gc) { /* ... Code gốc ... */
         if (gc == null || canvas == null || uiFont == null) return;
         int currentLives = (player != null && player.isAlive()) ? player.getLives() : 0;
@@ -716,6 +798,7 @@ public class Bomberman extends Application {
     public double getCanvasHeight() { return (canvas != null) ? canvas.getHeight() : 0; }
     public Player getPlayer() { return player; }
     public com.example.bomberman.Map.Map getGameMap() { return gameMap; }
+    public List<Enemy> getEnemies() { return enemies; }
     public List<Bomb> getBombs() { return bombs; }
     public List<Item> getItems() { return items; }
     public List<Flame> getFlames() { return flames;} // Thêm getter nếu cần
@@ -763,27 +846,7 @@ public class Bomberman extends Application {
         return false; // Không tìm thấy bom nào tại vị trí đó
     }
     public double getElapsedTime() {
-        // Tính dựa trên thời gian còn lại của level
-        // Đảm bảo trả về giá trị không âm
         return Math.max(0, LEVEL_DURATION_SECONDS - this.levelTimeRemaining);
     }
 
-
-    // --- Các hàm không dùng nữa sau khi có Controller ---
-    // public void togglePause() { /* Xử lý bởi InputHandler -> Controller */ }
-    // public void startGame() { /* Xử lý bởi InputHandler -> Controller */ }
-    // public void restartGame() { /* Xử lý bởi InputHandler -> Controller */ }
-    // public void navigateMenuUp() { /* Xử lý bởi MenuController */ }
-    // public void navigateMenuDown() { /* Xử lý bởi MenuController */ }
-    // public void selectMenuOption() { /* Xử lý bởi MenuController */ }
-    // public void toggleMusic() { /* Xử lý bởi MenuController -> Bomberman.setMusicOn */ }
-    // private void updateGame(double deltaTime) { /* Logic chuyển vào PlayingController.update */ }
-    // private void renderGame() { /* Logic chuyển vào PlayingController.render -> renderGameComponents */ }
-    // private void renderMenu(GraphicsContext gc) { /* Logic chuyển vào MenuController.render */ }
-    // private void renderPauseScreen(GraphicsContext gc) { /* Logic chuyển vào PauseController.render */ }
-    // private void updateGameOverTransition(double deltaTime) { /* Logic chuyển vào GameOverTransitionController.update */ }
-    // private void renderGameOverTransition(GraphicsContext gc) { /* Logic chuyển vào GameOverTransitionController.render */ }
-    // private void updateGameOverScreen(double deltaTime) { /* Logic chuyển vào GameOverController.update */ }
-    // private void renderGameOverScreen(GraphicsContext gc) { /* Logic chuyển vào GameOverController.render */ }
-
-} // End of Bomberman class
+}

@@ -3,6 +3,7 @@ package com.example.bomberman.controller;
 import com.example.bomberman.Bomberman;
 import com.example.bomberman.GameState;
 import com.example.bomberman.entities.Direction;
+import com.example.bomberman.entities.Enemy;
 import com.example.bomberman.entities.Player;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.KeyCode;
@@ -51,16 +52,32 @@ public class PlayingController implements SceneController {
         bomberman.updateFlames(deltaTime);
         bomberman.updateItems(deltaTime);
         bomberman.updateTemporaryAnimations(deltaTime);
+        bomberman.updateEnemies(deltaTime);
+        bomberman.handlePlayerEnemyCollisions(); // Gọi hàm này
+        bomberman.handleFlameEnemyCollisions();
         // bomberman.updateEnemies(deltaTime); // TODO
 
         // --- Cập nhật trạng thái Portal (logic gốc là luôn bật) ---
         if (!portalActivated) {
-            // boolean allEnemiesDead = bomberman.areAllEnemiesDead(); // Cần hàm này nếu có Enemy
-            boolean activationConditionMet = true; // Logic gốc
-            if (activationConditionMet) {
-                bomberman.setPortalActivated(true); // Cần setter
-                System.out.println("Portal Activated! (Handled by PlayingController)");
+            boolean allEnemiesDead = true;
+            if(bomberman.getEnemies() != null) { // Kiểm tra null
+                for (Enemy e : bomberman.getEnemies()) {
+                    if (e.isAlive()) {
+                        allEnemiesDead = false;
+                        break;
+                    }
+                }
+            } else {
+                allEnemiesDead = false; // Nếu list null thì coi như chưa chết hết
             }
+
+
+            if (allEnemiesDead) { // Chỉ kích hoạt khi không còn Enemy sống
+                bomberman.setPortalActivated(true);
+                System.out.println("Portal Activated! All enemies defeated. (Handled by PlayingController)");
+            }
+
+
         }
 
         // --- Xử lý va chạm và tương tác (vẫn gọi hàm của Bomberman) ---
