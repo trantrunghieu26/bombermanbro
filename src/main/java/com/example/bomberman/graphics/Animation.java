@@ -1,75 +1,51 @@
 package com.example.bomberman.graphics;
 
-import javafx.scene.image.Image; // Import Image
-
-// Lớp quản lý chuỗi các Sprite để tạo Animation
+// Lớp trợ giúp để quản lý một chuỗi các Sprite cho animation
 public class Animation {
-
-    private Sprite[] frames; // Mảng các Sprite tạo nên animation
-    private double frameDuration; // Thời gian hiển thị mỗi frame (giây)
-    private boolean loop; // Có lặp lại animation không
+    private Sprite[] frames; // Các khung hình (Sprite) của animation
+    private double frameDuration; // Thời gian hiển thị mỗi khung hình (giây)
     private double totalDuration; // Tổng thời gian của animation (giây)
+    private boolean loop; // Có lặp lại animation không
 
     // Constructor
     public Animation(double frameDuration, boolean loop, Sprite... frames) {
         this.frameDuration = frameDuration;
         this.loop = loop;
         this.frames = frames;
-        this.totalDuration = frames.length * frameDuration; // Tính tổng thời gian
+        this.totalDuration = frameDuration * frames.length;
     }
 
-    // Phương thức lấy frame hiện tại dựa trên thời gian đã trôi qua
-    public Sprite getFrame(double animationTimer) {
+    // Lấy frame Sprite hiện tại dựa trên thời gian đã trôi qua (animationTime)
+    public Sprite getFrame(double animationTime) {
         if (frames == null || frames.length == 0) {
-            return null; // Trả về null nếu không có frame nào
+            return null; // Không có frame nào
         }
 
-        // Nếu không lặp và animation đã kết thúc, trả về frame cuối cùng hoặc null
-        if (!loop && animationTimer >= totalDuration) {
-            return frames[frames.length - 1]; // Trả về frame cuối cùng
-            // Hoặc có thể trả về null nếu muốn animation biến mất hoàn toàn sau khi kết thúc
-            // return null;
-        }
-
-        // Tính toán chỉ mục frame hiện tại
-        // Sử dụng phép chia lấy phần dư (%) để xử lý animation lặp
-        int frameIndex = (int) ((animationTimer / frameDuration));
-
+        double time = animationTime;
         if (loop) {
-            frameIndex = frameIndex % frames.length; // Đảm bảo chỉ mục nằm trong giới hạn khi lặp
+            // Nếu lặp lại, lấy phần dư của thời gian so với tổng thời gian animation
+            time = animationTime % totalDuration;
         } else {
-            // Đảm bảo chỉ mục không vượt quá giới hạn khi không lặp
-            frameIndex = Math.min(frameIndex, frames.length - 1);
+            // Nếu không lặp lại, giới hạn thời gian trong tổng thời gian animation
+            time = Math.min(animationTime, totalDuration);
         }
 
+        // Tính chỉ số frame dựa trên thời gian và thời gian hiển thị mỗi frame
+        int frameIndex = (int) (time / frameDuration);
 
-        // Trả về Sprite tương ứng với chỉ mục frame
+        // Đảm bảo chỉ số frame nằm trong phạm vi mảng
+        if (frameIndex >= frames.length) {
+            frameIndex = frames.length - 1; // Giữ ở frame cuối nếu không lặp và hết thời gian
+        }
+
         return frames[frameIndex];
-    }
-
-    // --- Phương thức mới để kiểm tra xem animation đã kết thúc chưa (chỉ dùng cho non-looping) ---
-    public boolean isFinished(double animationTimer) {
-        // Animation được coi là kết thúc khi thời gian đã trôi qua lớn hơn hoặc bằng tổng thời gian của animation
-        // Phương thức này chỉ thực sự có ý nghĩa cho animation KHÔNG lặp lại
-        return !loop && animationTimer >= totalDuration;
-    }
-
-    // --- Getters ---
-    public double getFrameDuration() {
-        return frameDuration;
-    }
-
-    public boolean isLooping() {
-        return loop;
-    }
-
-    public int getFrameCount() {
-        return frames.length;
     }
 
     public double getTotalDuration() {
         return totalDuration;
     }
 
-    // TODO: Các phương thức khác nếu cần
+    public boolean isLooping() {
+        return loop;
+    }
 }

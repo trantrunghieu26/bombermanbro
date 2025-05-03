@@ -1,97 +1,143 @@
 package com.example.bomberman.entities;
 
-import com.example.bomberman.graphics.Sprite; // Import Sprite để sử dụng SCALED_SIZE
+import com.example.bomberman.Controller;
+import com.example.bomberman.Map.Map;
+import com.example.bomberman.Map.Tile;
+import com.example.bomberman.Map.TileType;
+import com.example.bomberman.graphics.Sprite;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.Image; // Import Image
 
-// Lớp trừu tượng Entity là lớp cơ sở cho tất cả các thực thể trong game
-// Các thực thể như Player, Enemy, Bomb, Flame, Item sẽ kế thừa từ lớp này.
+import java.util.HashSet;
+import java.util.Set;
+
 public abstract class Entity {
 
-    // --- Thuộc tính vị trí và kích thước ---
-    // Tọa độ pixel thực trên màn hình
-    protected double x;
-    protected double y;
+    //           //      Attributes         ///        ///
 
-    // Tọa độ lưới (grid) trên bản đồ
+    // Vị trí theo pixel trên màn hình
+    protected double pixelX;
+    protected double pixelY;
+
+    // Vị trí theo ô lưới trên bản đồ (có thể tính từ pixelX, pixelY)
     protected int gridX;
     protected int gridY;
 
-    // Kích thước của thực thể (thường bằng kích thước của Sprite)
-    protected int width = Sprite.SCALED_SIZE;
-    protected int height = Sprite.SCALED_SIZE;
+    // Sprite hiện tại của thực thể để vẽ
+    protected Sprite sprite;
 
-    // --- Thuộc tính trạng thái ---
-    // Trạng thái hoạt động của thực thể. Nếu false, thực thể sẽ bị xóa khỏi danh sách quản lý.
-    protected boolean active = true;
+    // Cờ đánh dấu thực thể có cần loại bỏ khỏi game không
+    protected boolean removed = false;
 
-    // --- Hình ảnh/Sprite của thực thể ---
-    protected Image img;
+    protected Map map;
 
-    // Constructor
-    // Khởi tạo thực thể tại vị trí lưới (gridX, gridY) với một hình ảnh ban đầu
-    public Entity(int gridX, int gridY, Image img) {
+    //     //     Methods       //                   //
+
+    public Entity(int gridX, int gridY, Map map) {
+
         this.gridX = gridX;
         this.gridY = gridY;
-        // Tính toán tọa độ pixel dựa trên tọa độ lưới
-        this.x = gridX * Sprite.SCALED_SIZE;
-        this.y = gridY * Sprite.SCALED_SIZE;
-        this.img = img;
+
+        this.pixelX = gridX * Sprite.SCALED_SIZE;
+        this.pixelY = gridY * Sprite.SCALED_SIZE;
+        this.map = map;
     }
 
-    // --- Phương thức trừu tượng update ---
-    // Tất cả các lớp con phải triển khai phương thức này để cập nhật trạng thái của chúng theo thời gian.
-    public abstract void update(double deltaTime);
+    public Entity(int gridX, int gridY, Sprite sprite) {
+        this.gridX = gridX;
+        this.gridY = gridY;
 
-    // --- Phương thức trừu tượng render ---
-    // Tất cả các lớp con phải triển khai phương thức này để vẽ chúng lên màn hình.
-    public abstract void render(GraphicsContext gc);
-
-    // --- Các phương thức Getter ---
-    public double getX() {
-        return x;
+        this.pixelX = gridX * Sprite.SCALED_SIZE;
+        this.pixelY = gridY * Sprite.SCALED_SIZE;
+        this.sprite = sprite;
     }
 
-    public double getY() {
-        return y;
+    public boolean checkCollision(double checkPixelX, double checkPixelY) {
+        double playerSize = Sprite.SCALED_SIZE;
+        // --- TINH CHỈNH GIÁ TRỊ BUFFER NÀY ---
+        // Thử giảm giá trị này nếu nhân vật bị trễ khi bắt đầu di chuyển
+        double buffer = 6.0; // Thử 2.0, 1.0, 0.5, 0.1
+
+        // Tính toán tọa độ pixel của 4 góc hộp va chạm Player tại vị trí checkPixelX, checkPixelY
+        // Các điểm này cần nằm bên trong hộp va chạm Player
+        double topLeftX = checkPixelX + buffer;
+        double topLeftY = checkPixelY + buffer;
+        double topRightX = checkPixelX + playerSize - buffer;
+        double topRightY = checkPixelY + buffer;
+        double bottomLeftX = checkPixelX + buffer;
+        double bottomLeftY = checkPixelY + playerSize - buffer;
+        double bottomRightX = checkPixelX + playerSize - buffer;
+        double bottomRightY = checkPixelY + playerSize - buffer;
+
+        // Chuyển đổi các tọa độ pixel của các góc sang tọa độ lưới
+        // Sử dụng Math.floor để đảm bảo chúng ta kiểm tra ô mà góc đó nằm trong
+        int gridX1 = (int) Math.floor(topLeftX / playerSize);
+        int gridY1 = (int) Math.floor(topLeftY / playerSize);
+
+        int gridX2 = (int) Math.floor(topRightX / playerSize);
+        int gridY2 = (int) Math.floor(topRightY / playerSize);
+
+        int gridX3 = (int) Math.floor(bottomLeftX / playerSize);
+        int gridY3 = (int) Math.floor(bottomLeftY / playerSize);
+
+        int gridX4 = (int) Math.floor(bottomRightX / playerSize);
+        int gridY4 = (int) Math.floor(bottomRightY / playerSize);
+
+        // Tập hợp các ô lưới cần kiểm tra (loại bỏ các ô trùng lặp)
+        Set<String> tilesToCheck = new HashSet<>();
+        tilesToCheck.add(gridX1 + "," + gridY1);
+        tilesToCheck.add(gridX2 + "," + gridY2);
+        tilesToCheck.add(gridX3 + "," + gridY3);
+        tilesToCheck.add(gridX4 + "," + gridY4);
+
+        // Kiểm tra từng ô lưới trong danh sách
+        for (String tileCoord : tilesToCheck) {
+            String[] coords = tileCoord.split(",");
+            int checkGridX = Integer.parseInt(coords[0]);
+            int checkGridY = Integer.parseInt(coords[1]);
+
+            // Lấy Tile từ Map, kiểm tra biên
+            Tile tile = map.getTile(checkGridX, checkGridY);
+
+            // Nếu ô Tile tồn tại và KHÔNG thể đi qua được, thì CÓ va chạm
+            if (tile != null && !tile.isWalkable()) {
+                // TODO: Handle collision with special Tile types (e.g., Portal)
+                if (tile.getType() == TileType.PORTAL) {
+                    // Logic to check if conditions are met to enter Portal
+                    // If not met, treat as not walkable
+                    // return true;
+                    // If conditions ARE met, treat as walkable
+                    // continue;
+                } else {
+                    // Collision with Wall or Brick
+                    return true; // Collision detected
+                }
+            }
+        }
+
+        // If all checked tiles are walkable, no collision detected
+        return false; // No collision
     }
 
-    public int getGridX() {
-        return gridX;
+    public void render(GraphicsContext gc) {
+        // Chỉ vẽ nếu có sprite và chưa bị loại bỏ
+        if (sprite != null && !removed) {
+            // Vẽ Sprite tại vị trí pixel hiện tại
+            gc.drawImage(sprite.getFxImage(), pixelX, pixelY);
+        }
+        // TODO: Có thể thêm logic debug như vẽ hộp va chạm ở đây (chỉ trong chế độ debug)
     }
 
-    public int getGridY() {
-        return gridY;
-    }
+    // --- Getters ---
+    public double getPixelX() { return pixelX; }
+    public double getPixelY() { return pixelY; }
+    // Tính toán và trả về vị trí lưới dựa trên vị trí pixel hiện tại (làm tròn)
+    public int getGridX() { return (int) Math.round(pixelX / Sprite.SCALED_SIZE); }
+    public int getGridY() { return (int) Math.round(pixelY / Sprite.SCALED_SIZE); }
+    public Sprite getSprite() { return sprite; }
+    public boolean isRemoved() { return removed; }
 
-    public int getWidth() {
-        return width;
+    // Phương thức đánh dấu thực thể cần loại bỏ ở cuối vòng lặp update
+    public void remove() {
+        removed = true;
     }
-
-    public int getHeight() {
-        return height;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    // --- Các phương thức Setter ---
-    public void setX(double x) {
-        this.x = x;
-    }
-
-    public void setY(double y) {
-        this.y = y;
-    }
-
-    // Phương thức để đặt trạng thái hoạt động
-    public void setActive(boolean active) {
-        this.active = active;
-    }
-
-    // TODO: Thêm các phương thức chung khác nếu cần (ví dụ: getBoundingBox() để lấy hộp va chạm)
-    // public Rectangle2D getBoundingBox() {
-    //     return new Rectangle2D(x, y, width, height);
-    // }
 }

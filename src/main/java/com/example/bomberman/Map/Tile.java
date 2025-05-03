@@ -98,7 +98,8 @@ public class Tile {
     // Kiểm tra xem thực thể có thể di chuyển qua ô này không
     public boolean isWalkable() {
         return this.type == TileType.EMPTY ||
-                this.type == TileType.PORTAL;
+                this.type == TileType.PORTAL||
+                this.type == TileType.BOMB;
         // Lưu ý: Các thực thể động (người chơi, quái vật, item) nằm trên ô EMPTY hoặc PORTAL có thể ảnh hưởng đến việc đi lại.
         // Logic kiểm tra có thực thể khác chiếm ô không sẽ nằm ở lớp quản lý thực thể.
     }

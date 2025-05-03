@@ -36,4 +36,4 @@ build/
 
 ### Mac OS ###
 .DS_Store
-
+/res/textures/classic1.png

@@ -1,0 +1,18 @@
+Iterator<Bomb> bombIterator = placer.getBombs().iterator();
+                while(bombIterator.hasNext()) {
+                    Bomb otherBomb = bombIterator.next();
+                    // Chỉ kiểm tra bomb chưa nổ và ở vị trí hiện tại của ngọn lửa
+                    if (!otherBomb.isExploded() && otherBomb.getGridX() == currentX && otherBomb.getGridY() == currentY) {
+                        // Kích nổ bomb khác
+                        System.out.println("Flame hit another bomb at (" + currentX + ", " + currentY + "). Triggering chain reaction.");
+                        // Gọi triggerExplosionAt() cho bomb đó. Cần tìm cách gọi từ Bomberman hoặc cho Bomb tự gọi
+                        // otherBomb.triggerExplosion(); // TODO: Cần phương thức public triggerExplosion() trong Bomb
+                        // Tạm thời gọi lại trigger cho bomb khác.
+                        triggerExplosionAt(otherBomb.getGridX(), otherBomb.getGridY(), otherBomb.getFlameLength(), otherBomb.getPlacer());
+
+                        // Ngọn lửa này dừng lan tỏa theo hướng này
+                        hitDynamicEntity = true;
+                        break; // Thoát khỏi vòng lặp Bombs
+                    }
+                }
+
