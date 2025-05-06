@@ -427,6 +427,7 @@ public class Player {
         double bottomRightY_tile = checkPixelY + playerSize - buffer;
 
         Set<String> tilesToCheck = new HashSet<>();
+
         tilesToCheck.add(((int) Math.floor(topLeftX_tile / playerSize)) + "," + ((int) Math.floor(topLeftY_tile / playerSize)));
         tilesToCheck.add(((int) Math.floor(topRightX_tile / playerSize)) + "," + ((int) Math.floor(topRightY_tile / playerSize)));
         tilesToCheck.add(((int) Math.floor(bottomLeftX_tile / playerSize)) + "," + ((int) Math.floor(bottomLeftY_tile / playerSize)));

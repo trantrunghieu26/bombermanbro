@@ -39,7 +39,7 @@ public class Bomberman extends Application {
     // Constants and Static Fields (Giữ nguyên)
     // =========================================================================
     public static final int UI_PANEL_HEIGHT = 32;
-    private static final double LEVEL_DURATION_SECONDS = 10.0; // Giá trị gốc
+    private static final double LEVEL_DURATION_SECONDS = 200.0; // Giá trị gốc
     private final int MAX_LEVEL = 10;
     // Các hằng số animation có thể giữ ở đây hoặc chuyển vào Controller tương ứng
     // private final double SCORE_ANIMATION_DURATION = 1.5;
@@ -586,29 +586,34 @@ public class Bomberman extends Application {
             }
         }
     }
-    public void handlePortalTransition() { /* ... Code gốc ... */
+    public void handlePortalTransition(){
         if (player != null && player.isAlive() && portalActivated && portalGridX != -1) {
-            double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
-            double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
-            int playerGridX = (int) Math.floor(playerCenterX / Sprite.SCALED_SIZE);
-            int playerGridY = (int) Math.floor((playerCenterY - UI_PANEL_HEIGHT) / Sprite.SCALED_SIZE); // Dùng cách tính có UI Offset
+            int playerCurrentGridX = player.getGridX();
+            int playerCurrentGridY = player.getGridY();
 
-            if (playerGridX == portalGridX && playerGridY == portalGridY) {
-                if (levelTimeRemaining > 0) {
-                    addScore((int)(levelTimeRemaining * 2)); // Time bonus
+            if (playerCurrentGridX == portalGridX && playerCurrentGridY == portalGridY) {
+
+                System.out.println("Player entered portal! (Stored Grid Coordinates Match)");
+
+                if (levelTimeRemaining > 0) { // Cộng điểm thời gian nếu còn
+                    addScore((int)(levelTimeRemaining * 2));
+                    System.out.println("Added time bonus score.");
                 }
-                addScore(1000); // Level clear bonus
+                addScore(1000); // Cộng điểm qua màn cố định
+                System.out.println("Added level clear bonus score.");
 
-                currentLevel++;
-                if (currentLevel <= MAX_LEVEL) {
-                    // Yêu cầu load level mới và chuyển sang Playing
+                currentLevel++; // Tăng số level hiện tại
+
+                if (currentLevel <= MAX_LEVEL) { // Kiểm tra xem còn level để chơi không
+                    System.out.println("Loading next level: " + currentLevel);
                     requestLoadLevelAndSwitchState(currentLevel, GameState.PLAYING);
-                } else {
+                } else { // Đã hoàn thành level cuối cùng
                     System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
-                    // switchController(GameState.GAME_WON); // TODO: State game won
-                    if (primaryStage != null) primaryStage.close();
+                    // TODO: Chuyển sang trạng thái GAME_WON thay vì đóng cửa sổ
+                    if (primaryStage != null) {
+                        primaryStage.close(); // Đóng cửa sổ game
+                    }
                 }
-                // Không cần return vì switchController sẽ thay đổi controller
             }
         }
     }
@@ -786,4 +791,4 @@ public class Bomberman extends Application {
     // private void updateGameOverScreen(double deltaTime) { /* Logic chuyển vào GameOverController.update */ }
     // private void renderGameOverScreen(GraphicsContext gc) { /* Logic chuyển vào GameOverController.render */ }
 
-} // End of Bomberman class
+} // End of
