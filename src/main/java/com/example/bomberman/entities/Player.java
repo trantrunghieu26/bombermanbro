@@ -657,6 +657,16 @@ public class Player {
     public int getMaxBombs() { return maxBombs; } // Getter cho số bom tối đa
     public int getFlameLength() { return flameLength; } // Getter cho độ dài lửa
     public double getSpeed() { return speed; } // Getter cho tốc độ
+    public boolean isInvincible() {
+        return isInvincible;
+    }
+
+    /**
+     * Getter cho trạng thái đang trong animation chết tạm thời của Player.
+     */
+    public boolean isDyingTemporarily() {
+        return isDyingTemporarily;
+    }
     // TODO: public boolean canKickBomb() { return canKickBomb; } // Có thể thay thuộc tính public bằng getter
     // TODO: Getters cho các thuộc tính Powerup nâng cao khác (canPassBrick, canPassFlame, isInvincible)
 

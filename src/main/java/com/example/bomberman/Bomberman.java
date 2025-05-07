@@ -665,6 +665,70 @@ public class Bomberman extends Application {
             }
         }
     }
+    // Thêm phương thức này vào lớp Bomberman.java
+    public void handlePlayerFlameCollisions() {
+        // Chỉ kiểm tra nếu Player tồn tại, còn sống và không đang trong trạng thái chết tạm thời
+        if (player == null || !player.isAlive() || player.isDyingTemporarily()) {
+            return; // Không xử lý va chạm nếu Player không hợp lệ
+        }
+
+        // Kiểm tra xem Player có đang bất tử không
+        if (player.isInvincible()) { // isInvincible là thuộc tính public, nếu là private dùng player.isInvincible()
+            // Player đang bất tử, bỏ qua va chạm với lửa
+            return;
+        }
+
+        // Duyệt qua tất cả các ngọn lửa đang hoạt động
+        List<Flame> currentFlames = new ArrayList<>(flames); // Tạo bản sao để tránh lỗi nếu danh sách flames thay đổi trong vòng lặp (ít xảy ra ở đây nhưng là thói quen tốt)
+        for (Flame flame : currentFlames) {
+            // Chỉ kiểm tra va chạm với ngọn lửa còn hoạt động
+            if (flame.isActive()) {
+                // --- Kiểm tra va chạm dạng hình hộp (Axis-Aligned Bounding Box - AABB) ---
+                // So sánh vị trí và kích thước của hộp va chạm Player và Flame.
+                // Giả định cả hai đều có kích thước va chạm bằng Sprite.SCALED_SIZE
+                // và pixelX/pixelY là vị trí góc trên bên trái tương đối so với khu vực game (dưới UI panel).
+
+                double playerLeft = player.getPixelX();
+                double playerRight = player.getPixelX() + Sprite.SCALED_SIZE;
+                double playerTop = player.getPixelY();
+                double playerBottom = player.getPixelY() + Sprite.SCALED_SIZE;
+
+                double flameLeft = flame.getPixelX();
+                double flameRight = flame.getPixelX() + Sprite.SCALED_SIZE;
+                double flameTop = flame.getPixelY();
+                double flameBottom = flame.getPixelY() + Sprite.SCALED_SIZE;
+
+                // Kiểm tra sự chồng lấn giữa hai hình chữ nhật
+                boolean overlap = playerRight > flameLeft && playerLeft < flameRight &&
+                        playerBottom > flameTop && playerTop < flameBottom;
+
+                // --- Hoặc sử dụng phương pháp kiểm tra khoảng cách tâm (giống PlayerEnemyCollisions) ---
+                // double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                // double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                // double flameCenterX = flame.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                // double flameCenterY = flame.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                // double dx = playerCenterX - flameCenterX;
+                // double dy = playerCenterY - flameCenterY;
+                // double distance = Math.sqrt(dx*dx + dy*dy);
+                // double collisionThreshold = Sprite.SCALED_SIZE * 0.8; // Điều chỉnh ngưỡng va chạm
+
+                // if (distance < collisionThreshold) { ... va chạm ... }
+
+
+                // Nếu có va chạm chồng lấn
+                if (overlap) { // Nếu dùng phương pháp AABB
+                    // if (distance < collisionThreshold) { // Nếu dùng phương pháp khoảng cách
+                    System.out.println("Player collided with flame at (" + flame.getGridX() + ", " + flame.getGridY() + ")!"); // Log
+                    // Gọi phương thức Player.takeDamage(). Player sẽ tự xử lý giảm mạng, animation chết tạm thời, và hồi sinh/game over.
+                    player.takeDamage(1); // Mất 1 mạng
+
+                    // Quan trọng: Thoát khỏi vòng lặp ngay sau khi Player nhận sát thương
+                    // để tránh Player nhận sát thương nhiều lần từ cùng một vụ nổ trong một frame.
+                    return;
+                }
+            }
+        }
+    }
 
     public void handlePlayerEnemyCollisions() {
         if (player == null || !player.isAlive()) return;

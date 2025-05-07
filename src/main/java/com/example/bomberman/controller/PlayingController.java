@@ -53,6 +53,7 @@ public class PlayingController implements SceneController {
         bomberman.updateItems(deltaTime);
         bomberman.updateTemporaryAnimations(deltaTime);
         bomberman.updateEnemies(deltaTime);
+        bomberman.handlePlayerFlameCollisions();
         bomberman.handlePlayerEnemyCollisions(); // Gọi hàm này
         bomberman.handleFlameEnemyCollisions();
         // bomberman.updateEnemies(deltaTime); // TODO
