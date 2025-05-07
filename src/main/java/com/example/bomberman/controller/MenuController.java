@@ -13,7 +13,7 @@ public class MenuController implements SceneController {
 
     private Bomberman bomberman; // Tham chiếu đến lớp Bomberman chính
     // Các biến trạng thái riêng của Menu có thể chuyển vào đây
-    private String[] menuOptions = {"Start Game", "Settings", "Music: ON"};
+    private String[] menuOptions = {"Start Game",  "Music: ON"};
     private int selectedOptionIndex = 0;
     private boolean isMusicOn = true; // Trạng thái nhạc ban đầu
 
@@ -97,16 +97,20 @@ public class MenuController implements SceneController {
             case UP:
             case W:
                 navigateMenuUp();
+                if (bomberman != null) bomberman.playMenuMoveSound();
                 break;
             case DOWN:
             case S:
                 navigateMenuDown();
+                if (bomberman != null) bomberman.playMenuMoveSound();
                 break;
             case ENTER:
+                if (bomberman != null) bomberman.playMenuSelectSound();
                 selectMenuOption();
                 break;
             case ESCAPE:
                 // Thoát game từ Menu
+                if (bomberman != null) bomberman.playMenuSelectSound();
                 if (bomberman.getPrimaryStage() != null) {
                     bomberman.getPrimaryStage().close();
                 }
@@ -143,12 +147,9 @@ public class MenuController implements SceneController {
                 bomberman.requestLoadLevelAndSwitchState(1, GameState.PLAYING); // Cần phương thức này trong Bomberman
                 break;
             case 1: // Settings
-                System.out.println("Settings selected (Not implemented)");
-                // bomberman.switchController(GameState.SETTINGS); // Nếu có state Settings
-                break;
-            case 2: // Music
                 toggleMusic();
                 break;
+
         }
     }
 

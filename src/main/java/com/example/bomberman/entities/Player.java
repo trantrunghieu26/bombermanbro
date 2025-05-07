@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.List; // IMPORT LỚP LIST
 import java.util.Set;
 import com.example.bomberman.Bomberman;
+import javafx.scene.media.AudioClip;
 
 // Lớp đại diện cho người chơi Bomberman
 public class Player {
@@ -81,7 +82,6 @@ public class Player {
     private double animationTimer = 0; // Bộ đếm thời gian cho animation
     private Direction lastNonNoneDirection = Direction.DOWN; // Hướng cuối cùng không phải NONE (để biết đứng yên hướng nào)
 
-
     // --- Constructor ---
     public Player(int startGridX, int startGridY, Map map, Bomberman gameManager) {
         // Tính toán vị trí pixel dựa trên vị trí lưới và kích thước Sprite đã scale
@@ -142,28 +142,67 @@ public class Player {
 
     // --- Phương thức được gọi bởi InputHandler để đặt hướng di chuyển ---
     public void setMovingDirection(Direction direction) {
-        // Chỉ cho phép đổi hướng và di chuyển nếu Player còn sống
-        if (!isAlive) {
+        // --- 1. Kiểm tra trạng thái sống (Chỉ chạy một lần ở đầu) ---
+        if(!isAlive || isDyingTemporarily){
+        if (this.isMoving&&gameManager!=null) gameManager.stopPlayerWalkSound();
+            // Nếu Player không còn sống, đảm bảo dừng âm thanh bước chân nếu nó đang phát
+            // (Sử dụng trạng thái isMoving hiện tại để kiểm tra)
+
             this.currentDirection = Direction.NONE;
             this.isMoving = false;
-            return;
+
+            return; // Thoát ngay nếu Player không sống
+        }
+        boolean wasMoving = this.isMoving; // Lưu trạng thái di chuyển cũ
+
+        // --- Logic cập nhật hướng và trạng thái isMoving như cũ ---
+        if (direction != Direction.NONE) {
+            isMoving = true;
+            if (direction != currentDirection) {
+                currentDirection = direction;
+                lastNonNoneDirection = direction;
+                // ... (cập nhật currentAnimation) ...
+                animationTimer = 0;
+            }
+        } else {
+            if (isMoving) { // Chỉ xử lý nếu trước đó đang di chuyển
+                isMoving = false;
+                currentDirection = Direction.NONE;
+                // ... (cập nhật currentAnimation về idle) ...
+                animationTimer = 0;
+            }
         }
 
-        this.currentDirection = direction;
-        this.isMoving = (direction != Direction.NONE);
 
+        // --- 3. Xử lý âm thanh bước chân dựa trên sự thay đổi trạng thái di chuyển ---
+        // Logic này sử dụng trạng thái cũ (wasMoving) và trạng thái mới (this.isMoving)
+        boolean isMovingNow = this.isMoving; // Lấy trạng thái mới
+
+        if (gameManager != null) { // Luôn kiểm tra gameManager không null
+            // Nếu BẮT ĐẦU di chuyển (trước đó không, bây giờ có)
+            if (isMovingNow && !wasMoving) {
+                gameManager.startPlayerWalkSound(); // Gọi hàm bắt đầu âm thanh lặp
+            }
+            // Nếu DỪNG di chuyển (trước đó có, bây giờ không)
+            else if (!isMovingNow && wasMoving) {
+                gameManager.stopPlayerWalkSound(); // Gọi hàm dừng âm thanh lặp
+            }
+        }
+
+        // --- 4. Cập nhật Animation dựa trên trạng thái di chuyển VÀ hướng mới ---
         if (isMoving) {
-            // Chọn animation di chuyển và cập nhật hướng cuối cùng (để biết đứng yên hướng nào)
-            switch (direction) {
+            // Đang di chuyển, chọn animation di chuyển theo hướng mới
+            switch (this.currentDirection) { // Dùng this.currentDirection đã được cập nhật
                 case UP: currentAnimation = walkUpAnimation; lastNonNoneDirection = Direction.UP; break;
                 case DOWN: currentAnimation = walkDownAnimation; lastNonNoneDirection = Direction.DOWN; break;
                 case LEFT: currentAnimation = walkLeftAnimation; lastNonNoneDirection = Direction.LEFT; break;
                 case RIGHT: currentAnimation = walkRightAnimation; lastNonNoneDirection = Direction.RIGHT; break;
-                case NONE: break; // Trường hợp này isMoving sẽ là false
+                case NONE: break; // Trường hợp này isMoving sẽ là false, không nên vào đây
             }
-            // animationTimer = 0; // Không reset timer khi bắt đầu di chuyển, để animation chạy mượt
+            // animationTimer không cần reset ở đây để animation di chuyển chạy mượt
+
         } else {
-            // Chọn animation đứng yên tương ứng với hướng cuối cùng và reset timer
+            // Không di chuyển, chọn animation đứng yên theo hướng cuối cùng không phải NONE
             switch (lastNonNoneDirection) {
                 case UP: currentAnimation = idleUpAnimation; break;
                 case DOWN: currentAnimation = idleDownAnimation; break;
@@ -171,11 +210,15 @@ public class Player {
                 case RIGHT: currentAnimation = idleRightAnimation; break;
                 default: currentAnimation = idleDownAnimation; break; // Mặc định đứng yên hướng xuống
             }
-            animationTimer = 0; // Reset timer animation khi dừng di chuyển
+            animationTimer = 0; // Reset timer animation khi dừng di chuyển để animation bắt đầu từ frame đầu tiên
         }
+
+        // ANIMATION DEAD LOGIC (Nếu bạn có animation chết riêng cho Player trong Player.java)
+        // if (!isAlive && dyingAnimation != null) {
+        //     currentAnimation = dyingAnimation;
+        //     // animationTimer không cần reset ở đây vì dyingTimer/animationTimer sẽ được quản lý ở Player.update
+        // }
     }
-
-
     // Phương thức được gọi bởi InputHandler khi nhấn phím đặt bom
     public void placeBomb() {
         // Chỉ cho phép đặt bom nếu Player còn sống và không đang trong trạng thái không thể đặt bom
@@ -218,6 +261,7 @@ public class Player {
                 gameManager.addBomb(newBomb); // gameManager phải có phương thức addBomb(Bomb bomb)
                 System.out.println("Player placed a bomb at (" + bombGridX + ", " + bombGridY + "). Current bombs left: " + (currentBombs - 1)); // Log
                 // Giảm số lượng bom mà Player có thể đặt SAU KHI thêm thành công
+                gameManager.playBombPlacedSound();
                 currentBombs--;
                 // TODO: Phát âm thanh đặt bom
             } else {
@@ -313,8 +357,12 @@ public class Player {
 
     public void update(double deltaTime) {
 
-        if (!isAlive) { return; }
+        if (!isAlive) {
+            if (gameManager != null) gameManager.stopPlayerWalkSound();
+            return;
+        }
         if (isDyingTemporarily) {
+            if (gameManager != null) gameManager.stopPlayerWalkSound();
             dyingAnimationTimer += deltaTime; // Cập nhật timer riêng của animation chết
             animationTimer += deltaTime;      // Cập nhật timer chung cho animation getFrame
 
@@ -728,6 +776,9 @@ public class Player {
         if (isInvincible) return;
         lives -= damage;
         System.out.println("Player took damage. Remaining lives: " + lives); // Log
+        if (gameManager != null) {
+            gameManager.playPlayerDeadSound(); // << THÊM DÒNG NÀY
+        }
         if (isAlive) { // Chỉ bắt đầu dying nếu isAlive còn true
             System.out.println("takeDamage: Starting temporary dying process.");
             startTemporaryDying();
@@ -757,6 +808,7 @@ public class Player {
         if (this.idleDownAnimation != null) { // Kiểm tra null
             this.currentAnimation = this.idleDownAnimation;
         }
+        if (gameManager != null) gameManager.stopPlayerWalkSound();
         this.animationTimer = 0; // Reset timer animation
 
         // Kích hoạt bất tử tạm thời sau khi hồi sinh
@@ -774,5 +826,6 @@ public class Player {
         currentAnimation = dyingAnimation; // Chuyển sang animation chết
         isMoving = false;            // Ngừng di chuyển
         currentDirection = Direction.NONE;
+        if (gameManager != null) gameManager.stopPlayerWalkSound();
     }
 }

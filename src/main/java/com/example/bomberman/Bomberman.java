@@ -3,7 +3,6 @@ package com.example.bomberman;
 // ---- GIỮ LẠI CÁC IMPORT CẦN THIẾT ----
 import com.example.bomberman.Map.MapData;
 import com.example.bomberman.Map.Tile; // Giữ lại nếu Player.checkCollision cần
-import com.example.bomberman.Map.TileType; // Giữ lại nếu Player.checkCollision cần
 import com.example.bomberman.controller.*; // Import package controller
 import com.example.bomberman.entities.*;
 import com.example.bomberman.entities.Items.*;
@@ -18,7 +17,6 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
-import javafx.scene.image.WritableImage; // Thêm WritableImage
 import javafx.scene.input.KeyCode; // Thêm KeyCode
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -31,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import javafx.scene.media.*;
 
 
 public class Bomberman extends Application {
@@ -87,11 +86,21 @@ public class Bomberman extends Application {
     private Image lastScreenSnapshot = null;
     private Animation playerDeadAnimation;
     private boolean isMusicOn = true; // Trạng thái nhạc
+    // =========================================================================
+    // Sound
+    // =========================================================================
+    private MediaPlayer backgroundMusicPlayer;
 
-    // Biến trạng thái Menu (có thể giữ ở đây nếu InputHandler cần hoặc chuyển vào MenuController)
-    // private String[] menuOptions = {"Start Game", "Settings", "Music: ON"};
-    // private int selectedOptionIndex = 0;
-
+    // AudioClips for sound effects (đặt tên theo chức năng hoặc file của bạn)
+    private AudioClip menuMoveSound;
+    private AudioClip menuSelectSound;
+    private AudioClip bombPlacedSound; // Âm thanh đặt bom (giả định tên file)
+    private AudioClip explosionSound; // Âm thanh nổ bom
+    private AudioClip playerDeadSound; // Âm thanh Player chết
+    private AudioClip itemPickupSound; // Âm thanh nhặt Item
+    private AudioClip  playerWalkSound; // Âm thanh bước chân (sẽ xử lý phức tạp hơn)
+    private AudioClip gameOverSound;// am thanh game over
+    private boolean isPlayerWalkSoundPlaying = false;
 
     // =========================================================================
     // Application Lifecycle & Initialization
@@ -119,7 +128,7 @@ public class Bomberman extends Application {
         primaryStage.show();
         // --- Khởi tạo trạng thái ban đầu ---
         switchController(GameState.MENU); // Bắt đầu ở Menu
-
+        playBackgroundMusic();
         startGameLoop(); // Bắt đầu vòng lặp game
     }
 
@@ -183,12 +192,156 @@ public class Bomberman extends Application {
             System.err.println("Error loading hand cursor: " + e.getMessage());
             e.printStackTrace();
         }
+        try {
+            // Background Music
+            // Đường dẫn tài nguyên phải bắt đầu bằng '/' và là đường dẫn trong thư mục res/Sound
+            java.net.URL bgMusicUrl = getClass().getResource("/Sound/BackGroundMusic.mp3");
+            if (bgMusicUrl != null) {
+                javafx.scene.media.Media backgroundMusic = new javafx.scene.media.Media(bgMusicUrl.toExternalForm());
+                backgroundMusicPlayer = new javafx.scene.media.MediaPlayer(backgroundMusic);
+                backgroundMusicPlayer.setCycleCount(javafx.scene.media.MediaPlayer.INDEFINITE); // Lặp vô hạn
+                backgroundMusicPlayer.setVolume(0.3); // Điều chỉnh âm lượng (0.0 đến 1.0)
+                System.out.println("Background music loaded.");
+            } else {
+                System.err.println("Could not find background music resource: /Sound/BackGroundMusic.mp3");
+            }
+
+            // Sound Effects (AudioClip)
+            // Sử dụng một phương thức helper để tải AudioClip an toàn hơn
+            menuMoveSound = loadAudioClip("/Sound/DichuyencontroMenu.mp3", "Menu Move");
+            menuSelectSound = loadAudioClip("/Sound/SelectLuaChonMenu.mp3", "Menu Select");
+            // Bạn cần kiểm tra tên file âm thanh thực tế của mình và cập nhật đường dẫn/tên biến ở đây
+            // Giả định các tên file sau tồn tại hoặc bạn có thể thay đổi chúng:
+            bombPlacedSound = loadAudioClip("/Sound/BombPlaced.mp3", "Bomb Placed"); // Giả định tên file
+            playerDeadSound = loadAudioClip("/Sound/PlayerDead.mp3", "Player Dead"); // Sử dụng tên file của bạn
+            itemPickupSound = loadAudioClip("/Sound/PickUpItem.mp3", "Item Pickup"); // Sử dụng tên file của bạn
+            playerWalkSound = loadAudioClip("/Sound/amthanhdibo.mp3", "Player Walk"); // Sử dụng tên file của bạn
+            gameOverSound = loadAudioClip("/Sound/GameOver.mp3", "Game Over"); // Sử dụng tên file của bạn
+            explosionSound = loadAudioClip("/Sound/amthanhbomno.mp3", "Bomb Explosion");
+            bombPlacedSound = loadAudioClip("/Sound/placebomb.mp3", "Bomb Placed");
+            // TODO: Thêm các AudioClip khác tương ứng với file bạn có: EnemyDead, BrickBreak, LevelClear,...
+
+        } catch (Exception e) {
+            System.err.println("Error loading sound resources: " + e.getMessage());
+            e.printStackTrace();
+            // Tiếp tục chạy game mà không có âm thanh
+        }
 
         // Load Player Dead Animation Sprites
         this.playerDeadAnimation = new Animation(1.0/3.0, false, Sprite.player_dead1, Sprite.player_dead2, Sprite.player_dead3); // Thời gian frame hợp lý hơn
     }
+    private AudioClip loadAudioClip(String resourcePath, String debugName) {
+        try {
+            java.net.URL resourceUrl = getClass().getResource(resourcePath);
+            if (resourceUrl != null) {
+                javafx.scene.media.AudioClip clip = new javafx.scene.media.AudioClip(resourceUrl.toExternalForm());
+                System.out.println(debugName + " sound loaded.");
+                return clip;
+            } else {
+                System.err.println("Could not find " + debugName + " sound resource: " + resourcePath);
+                return null; // Trả về null nếu không tìm thấy
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading " + debugName + " sound: " + e.getMessage());
+            e.printStackTrace();
+            return null; // Trả về null nếu có lỗi khác
+        }
+    }
+    public void playBackgroundMusic() {
+        if (backgroundMusicPlayer != null && isMusicOn) {
+            // Đảm bảo dừng nhạc nền cũ trước khi phát lại nếu cần
+            // backgroundMusicPlayer.stop(); // Tùy chọn, nếu muốn nhạc luôn bắt đầu từ đầu
+            backgroundMusicPlayer.play();
+            System.out.println("Playing background music.");
+        }
+    }
 
+    /**
+     * Dừng phát nhạc nền.
+     */
+    public void stopBackgroundMusic() {
+        if (backgroundMusicPlayer != null) {
+            backgroundMusicPlayer.stop();
+            System.out.println("Stopping background music.");
+        }
+    }
+    /**
+     * Điều chỉnh trạng thái bật/tắt âm thanh toàn cục.
+     */
+    public void setMusicOn(boolean on) {
+        this.isMusicOn = on;
+        if (backgroundMusicPlayer != null) {
+            backgroundMusicPlayer.setMute(!on); // Bật/tắt tiếng MediaPlayer
+            // MediaPlayer có thể tạm dừng/phát tiếp, hoặc dừng hẳn. Mute đơn giản hơn.
+            // Nếu bạn dùng stop/play, cần logic phức tạp hơn khi chuyển state/tạm dừng game.
+        }
 
+        // Quản lý âm thanh bước chân (nếu đang phát)
+        // Nếu nhạc bị tắt, dừng âm thanh bước chân ngay lập tức
+        if (!on && isPlayerWalkSoundPlaying) {
+            stopPlayerWalkSound();
+        }
+        // Nếu nhạc được bật VÀ Player đang di chuyển VÀ âm thanh bước chân chưa phát, bắt đầu phát lại
+        // Logic này sẽ được kích hoạt lại khi Player bắt đầu di chuyển hoặc khi Player đang di chuyển
+        // và bạn bật nhạc lại từ menu.
+        if (on && player != null && player.isMoving() && !isPlayerWalkSoundPlaying) {
+            startPlayerWalkSound(); // Cần phương thức này bên dưới
+        }
+
+        System.out.println("Music set to: " + isMusicOn);
+    }
+    private void playSound(javafx.scene.media.AudioClip clip) {
+        if (clip != null && isMusicOn) {
+            clip.play();
+        }
+    }
+
+    // Các phương thức cụ thể để phát từng loại âm thanh hiệu ứng
+    public void playMenuMoveSound() { playSound(menuMoveSound); }
+    public void playMenuSelectSound() { playSound(menuSelectSound); }
+    public void playExplosionSound() { playSound(explosionSound); }
+    public void playPlayerDeadSound() { playSound(playerDeadSound); }
+    public void playItemPickupSound() { playSound(itemPickupSound); }
+    public void playGameOverSound() { playSound(gameOverSound); }
+    public void playBombPlacedSound() {playSound(bombPlacedSound);}
+    public void playPlayerWalkSound() {playSound(playerWalkSound); }
+    // TODO: Thêm các phương thức playSound khác: playEnemyDeadSound(), playBrickBreakSound(), ...
+    /**
+     * Bắt đầu phát âm thanh bước chân (lặp).
+     * Được gọi từ Player khi bắt đầu di chuyển.
+     */
+    public void startPlayerWalkSound() {
+       // System.out.println("Attempting to start player walk sound...");
+       // System.out.println("  - playerWalkSound null? " + (playerWalkSound == null));
+       // System.out.println("  - isMusicOn? " + isMusicOn);
+       //   System.out.println("  - isPlayerWalkSoundPlaying? " + isPlayerWalkSoundPlaying);
+
+        if (playerWalkSound != null && isMusicOn && !isPlayerWalkSoundPlaying) {
+            playerWalkSound.setCycleCount(AudioClip.INDEFINITE);
+            playerWalkSound.setVolume(2.0); // Đảm bảo âm lượng không phải là 0
+            playerWalkSound.play(); // Gọi play trực tiếp
+            isPlayerWalkSoundPlaying = true;
+            System.out.println("SUCCESS: Starting player walk sound loop.");
+        } else {
+            System.out.println("INFO: Conditions not met to start player walk sound.");
+            if (playerWalkSound == null) System.out.println("  Reason: playerWalkSound is null.");
+            if (!isMusicOn) System.out.println("  Reason: isMusicOn is false.");
+            if (isPlayerWalkSoundPlaying) System.out.println("  Reason: isPlayerWalkSoundPlaying is already true.");
+        }
+    }
+    /**
+     * Dừng phát âm thanh bước chân.
+     * Được gọi từ Player khi dừng di chuyển.
+     */
+    public void stopPlayerWalkSound() {
+        // Chỉ dừng nếu clip tồn tại VÀ âm thanh bước chân đang phát
+        if (playerWalkSound != null && isPlayerWalkSoundPlaying) {
+            System.out.println("DEBUG: Calling playerWalkSound.stop()");
+            playerWalkSound.stop(); // Dừng lần phát cuối cùng (trong trường hợp lặp là toàn bộ loop)
+            isPlayerWalkSoundPlaying = false;
+            System.out.println("Stopping player walk sound loop.");
+        }
+    }
     // =========================================================================
     // Game Loop (Sửa đổi để ủy quyền)
     // =========================================================================
@@ -231,7 +384,12 @@ public class Bomberman extends Application {
     // =========================================================================
     public void switchController(GameState newState) {
         System.out.println("Switching state from " + currentState + " to: " + newState);
+        // Dừng nhạc nền khi vào các trạng thái tạm dừng hoặc kết thúc (có âm thanh riêng)
 
+        if (currentState == GameState.PLAYING && (newState == GameState.PAUSED || newState == GameState.GAME_OVER_TRANSITION)) {
+            // Tạm dừng nhạc nền khi vào PAUSED hoặc chuẩn bị Game Over
+            stopBackgroundMusic(); // Hoặc bạn có thể chỉ tạm dừng bằng player.pause()
+        }
         // (Optional) Gọi onExitState của controller cũ nếu có
         // if (currentController != null && currentController instanceof YourSpecificController) {
         //     ((YourSpecificController) currentController).onExitState();
@@ -243,11 +401,13 @@ public class Bomberman extends Application {
         switch (newState) {
             case MENU:
                 this.currentController = new MenuController(this);
+                playBackgroundMusic();
                 break;
             case PLAYING:
                 // Playing state chỉ nên được vào sau khi level đã load thành công
                 // Việc chuyển sang PLAYING sẽ do requestLoadLevelAndSwitchState xử lý
                 // Nếu gọi trực tiếp switchController(PLAYING) ở đây mà chưa load level sẽ lỗi
+                playBackgroundMusic();
                 if (this.player != null && this.gameMap != null) {
                     this.currentController = new PlayingController(this);
                 } else {
@@ -277,6 +437,8 @@ public class Bomberman extends Application {
                 // Thường vào từ GameOverTransition
                 if (currentController instanceof GameOverTransitionController) {
                     this.currentController = new GameOverController(this);
+                    // Phát âm thanh Game Over khi vào trạng thái này
+                    playGameOverSound();
                 } else {
                     System.err.println("Cannot switch to GAME_OVER state from " + currentState);
                     // Có thể fallback về Menu hoặc trạng thái an toàn khác
@@ -602,7 +764,10 @@ public class Bomberman extends Application {
             if (item.isActive() && player.collidesWith(item)) {
                 item.applyEffect(player);
                 item.setActive(false); // Item tự xóa trong updateItems
-                addScore(50); // Cộng điểm khi nhặt item (thêm vào)
+                addScore(50);
+                if (this != null) { // Đảm bảo gameManager không null (mặc dù this không bao giờ null ở đây)
+                    playItemPickupSound(); // T (gọi phương thức của Bomberman)
+                }// Cộng điểm khi nhặt item (thêm vào)
             }
         }
     }
@@ -650,8 +815,8 @@ public class Bomberman extends Application {
                     // Kiểm tra va chạm AABB đơn giản giữa tâm Flame và tâm Enemy
                     double flameCenterX = flame.getPixelX() + Sprite.SCALED_SIZE / 2.0;
                     double flameCenterY = flame.getPixelY() + Sprite.SCALED_SIZE / 2.0;
-                    double enemyCenterX = enemy.getPixelX() + Sprite.SCALED_SIZE / 2.0;
-                    double enemyCenterY = enemy.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                    double enemyCenterX = enemy.getX() + Sprite.SCALED_SIZE / 2.0;
+                    double enemyCenterY = enemy.getY() + Sprite.SCALED_SIZE / 2.0;
                     double dx = flameCenterX - enemyCenterX;
                     double dy = flameCenterY - enemyCenterY;
                     double distance = Math.sqrt(dx*dx + dy*dy);
@@ -738,8 +903,8 @@ public class Bomberman extends Application {
             if (enemy.isAlive()) { // Chỉ va chạm với Enemy còn sống
                 double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
                 double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
-                double enemyCenterX = enemy.getPixelX() + Sprite.SCALED_SIZE / 2.0;
-                double enemyCenterY = enemy.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                double enemyCenterX = enemy.getX() + Sprite.SCALED_SIZE / 2.0;
+                double enemyCenterY = enemy.getY() + Sprite.SCALED_SIZE / 2.0;
                 double dx = playerCenterX - enemyCenterX;
                 double dy = playerCenterY - enemyCenterY;
                 double distance = Math.sqrt(dx*dx + dy*dy);
@@ -881,7 +1046,7 @@ public class Bomberman extends Application {
     public void setLastScreenSnapshot(Image snapshot) { this.lastScreenSnapshot = snapshot; } // Cần setter
     public Animation getPlayerDeadAnimation() { return playerDeadAnimation; }
     public InputHandler getInputHandler() { return inputHandler; } // Cần cho PauseController
-    public void setMusicOn(boolean on) { this.isMusicOn = on; } // Cần setter
+    // Cần setter
 
 
     // Helper nhận KeyCode trả về Direction (có thể đặt ở InputHandler hoặc đây)

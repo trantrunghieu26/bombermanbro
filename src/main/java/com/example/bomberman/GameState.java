@@ -7,6 +7,6 @@ public enum GameState {
     GAME_OVER,   // Màn hình thua cuộc (sẽ làm sau)
     GAME_OVER_TRANSITION,
     //LEVEL_CLEARED, // Màn hình chuyển màn (tùy chọn, sẽ làm sau)
-    GAME_WON     // Màn hình thắng cuộc (sẽ làm sau)
+    GAME_WON ,    // Màn hình thắng cuộc (sẽ làm sau)
 
 }

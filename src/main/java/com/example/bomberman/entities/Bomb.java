@@ -245,8 +245,9 @@ public class Bomb {
 
         System.out.println("Bomb at (" + gridX + ", " + gridY + ") exploded! Flame length: " + flameLength); // Log tạm thời
 
-        // TODO: Phát âm thanh nổ bom
-
+        if (gameManager != null) { // Kiểm tra gameManager không null trước khi gọi
+            gameManager.playExplosionSound(); // << THÊM DÒNG NÀY
+        }
         // --- Logic tạo các đối tượng Flame lan tỏa ra các hướng ---
 
         // Tạo Flame ở tâm vụ nổ (vị trí của bom)

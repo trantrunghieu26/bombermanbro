@@ -6,15 +6,16 @@ import com.example.bomberman.Map.Tile;
 import com.example.bomberman.Map.TileType;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*; // Import Random và List
 
 public class Ghost extends Enemy {
 
     private static final double GHOST_SPEED = 65.0; // Tốc độ khá
     private static final int GHOST_SCORE = 400;   // Điểm cao vì khó chịu hơn
+    private static final double RANDOM_CHANGE_PROBABILITY = 0.01; // Xác suất đổi hướng ngẫu nhiên khi đang di chuyển
 
     public Ghost(int startGridX, int startGridY, Map map, Bomberman gameManager) {
         super(startGridX, startGridY, GHOST_SPEED, GHOST_SCORE, map, gameManager);
@@ -22,22 +23,25 @@ public class Ghost extends Enemy {
         double frameDuration = 0.2;
         walkLeftAnimation = new Animation(frameDuration, true, Sprite.ghost_left1, Sprite.ghost_left2, Sprite.ghost_left3);
         walkRightAnimation = new Animation(frameDuration, true, Sprite.ghost_right1, Sprite.ghost_right2, Sprite.ghost_right3);
-        deadAnimation = new Animation(TIME_TO_DIE / 4.0, false, Sprite.ghost_dead, Sprite.mob_dead1, Sprite.mob_dead2, Sprite.mob_dead3);
+        deadAnimation = new Animation(TIME_TO_DIE / 3.0, false, Sprite.ghost_dead, Sprite.mob_dead1, Sprite.mob_dead2); // Sử dụng 3 frame chết
+        // Update animation list nếu có animation UP/DOWN riêng
     }
 
     /**
      * Ghost di chuyển ngẫu nhiên, nhưng có khả năng đi xuyên gạch.
+     * Nó cũng có logic đuổi theo Player đơn giản.
      */
     @Override
     protected void calculateNextMove() {
         Player player = gameManager.getPlayer();
 
+        // Nếu Player tồn tại và còn sống, cố gắng đuổi theo
         if (player != null && player.isAlive()) {
-            // Logic đuổi theo Player đơn giản
             Direction dirToPlayer = getDirectionTowards(player.getGridX(), player.getGridY());
 
-            // Thử đi theo hướng đó nếu có thể
+            // Nếu có hướng đến Player và có thể bắt đầu di chuyển theo hướng đó (Ghost có thể đi xuyên gạch)
             if (dirToPlayer != Direction.NONE && canMoveTowards(dirToPlayer)) {
+                //System.out.println("GHOST DEBUG: Chasing player. Direction: " + dirToPlayer); // Log
                 currentDirection = dirToPlayer;
                 isMoving = true;
                 updateAnimationForDirection(currentDirection);
@@ -45,118 +49,58 @@ public class Ghost extends Enemy {
             }
         }
 
-        // Nếu không đuổi được Player (Player không tồn tại, hoặc hướng đến Player bị chặn)
-        // thì di chuyển ngẫu nhiên (như Balloom hoặc logic cũ của Ghost)
-        if (!isMoving || random.nextDouble() < 0.15) { // Tăng nhẹ xác suất đổi hướng ngẫu nhiên
-            setRandomDirection(); // Hàm này của Enemy đã thông minh hơn
+        // Nếu không đuổi được Player (Player chết, hoặc hướng đến Player bị chặn bởi WALL/BOMB)
+        // Hoặc nếu nó đang di chuyển rồi (isMoving=true), thêm xác suất đổi hướng ngẫu nhiên.
+        // Nếu !isMoving (vừa bị chặn), nó sẽ luôn gọi setRandomDirection() ở đây.
+        if (!isMoving || random.nextDouble() < RANDOM_CHANGE_PROBABILITY) {
+            //System.out.println("GHOST DEBUG: Chasing failed or random chance. Calling setRandomDirection."); // Log
+            setRandomDirection(); // Chọn hướng ngẫu nhiên (sẽ chọn hướng đi được theo luật của Ghost)
         }
+        // Nếu đang di chuyển và không đổi hướng ngẫu nhiên, nó sẽ tiếp tục đi theo currentDirection
+        // Việc xử lý khi bị chặn sẽ nằm trong phương thức move() và handleBlockedMovement() (của lớp Enemy, override isObstacle của Ghost)
+
     }
-    private Direction getDirectionTowards(int targetGridX, int targetGridY) {
+
+    // Helper lấy hướng trực tiếp đến mục tiêu (đã có)
+    // Có thể di chuyển lên lớp Enemy hoặc GameMath helper nếu cần dùng chung
+    protected Direction getDirectionTowards(int targetGridX, int targetGridY) {
         int dx = targetGridX - this.gridX;
         int dy = targetGridY - this.gridY;
 
-        List<Direction> preferredDirections = new ArrayList<>();
-        List<Direction> fallbackDirections = new ArrayList<>();
-
-        // Ưu tiên các hướng chính giúp giảm khoảng cách
-        if (dx > 0) preferredDirections.add(Direction.RIGHT);
-        else if (dx < 0) preferredDirections.add(Direction.LEFT);
-
-        if (dy > 0) preferredDirections.add(Direction.DOWN);
-        else if (dy < 0) preferredDirections.add(Direction.UP);
-
-        // Các hướng phụ (nếu hướng chính không khả thi)
-        if (dx == 0) { // Cùng cột, ưu tiên dọc
-            if (dy > 0) {
-                fallbackDirections.add(Direction.LEFT);
-                fallbackDirections.add(Direction.RIGHT);
-            } else if (dy < 0) {
-                fallbackDirections.add(Direction.LEFT);
-                fallbackDirections.add(Direction.RIGHT);
-            }
-        } else if (dy == 0) { // Cùng hàng, ưu tiên ngang
-            if (dx > 0) {
-                fallbackDirections.add(Direction.UP);
-                fallbackDirections.add(Direction.DOWN);
-            } else if (dx < 0) {
-                fallbackDirections.add(Direction.UP);
-                fallbackDirections.add(Direction.DOWN);
-            }
-        } else { // Chéo, thêm các hướng vuông góc vào fallback
-            if (Math.abs(dx) > Math.abs(dy)) { // Di chuyển ngang là chính
-                if (dy > 0) fallbackDirections.add(Direction.DOWN);
-                else if (dy < 0) fallbackDirections.add(Direction.UP);
-            } else { // Di chuyển dọc là chính
-                if (dx > 0) fallbackDirections.add(Direction.RIGHT);
-                else if (dx < 0) fallbackDirections.add(Direction.LEFT);
-            }
+        // Ưu tiên di chuyển theo trục có khoảng cách lớn hơn để nhanh chóng đến gần
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return (dx > 0) ? Direction.RIGHT : Direction.LEFT;
+        } else if (Math.abs(dy) > 0) {
+            return (dy > 0) ? Direction.DOWN : Direction.UP;
         }
-
-
-        Collections.shuffle(preferredDirections);
-        Collections.shuffle(fallbackDirections);
-
-        // Thử các hướng ưu tiên trước
-        for (Direction dir : preferredDirections) {
-            if (canMoveTowards(dir)) return dir;
-        }
-        // Nếu không được, thử các hướng phụ
-        for (Direction dir : fallbackDirections) {
-            if (canMoveTowards(dir)) return dir;
-        }
-
-        return Direction.NONE; // Không tìm thấy hướng tốt
+        return Direction.NONE; // Đang ở cùng ô hoặc dx=dy=0
     }
 
 
-
-    // Override checkMovementCollision để có hành vi riêng khi đi xuyên gạch
-    @Override
-    protected boolean checkMovementCollision(double checkPixelX, double checkPixelY) {
-        double entitySize = Sprite.SCALED_SIZE;
-        double buffer = 1.0; // Ghost có thể cần buffer nhỏ hơn để "lách" tốt hơn
-
-        double innerTop = checkPixelY + buffer;
-        double innerBottom = checkPixelY + entitySize - buffer;
-        double innerLeft = checkPixelX + buffer;
-        double innerRight = checkPixelX + entitySize - buffer;
-        double midX = checkPixelX + entitySize / 2.0;
-        double midY = checkPixelY + entitySize / 2.0;
-
-        // Kiểm tra 8 điểm, nhưng với logic isObstacleForGhost
-        if (isObstacleAtPixelForGhost(innerLeft, innerTop) ||
-                isObstacleAtPixelForGhost(innerRight, innerTop) ||
-                isObstacleAtPixelForGhost(innerLeft, innerBottom) ||
-                isObstacleAtPixelForGhost(innerRight, innerBottom) ||
-                isObstacleAtPixelForGhost(midX, innerTop) ||
-                isObstacleAtPixelForGhost(midX, innerBottom) ||
-                isObstacleAtPixelForGhost(innerLeft, midY) ||
-                isObstacleAtPixelForGhost(innerRight, midY)) {
-            return true;
-        }
-        return false;
-    }
-
-    // Helper riêng cho Ghost, gọi isObstacle (đã được override trong Ghost)
-    private boolean isObstacleAtPixelForGhost(double px, double py) {
-        int gx = (int) Math.floor(px / Sprite.SCALED_SIZE);
-        int gy = (int) Math.floor(py / Sprite.SCALED_SIZE);
-        return this.isObstacle(gx, gy); // Gọi isObstacle của Ghost
-    }
-
-    // isObstacle của Ghost (bạn đã có, chỉ Tường và Bom chặn)
+    // Override isObstacle để Ghost có thể đi xuyên gạch.
+    // Ghost bị chặn bởi WALL và BOMBS.
     @Override
     protected boolean isObstacle(int gX, int gY) {
+        // Kiểm tra biên bản đồ
         if (map == null || gX < 0 || gX >= map.getCols() || gY < 0 || gY >= map.getRows()) {
-            return true;
+            return true; // Ngoài map là vật cản
         }
+
+        // Kiểm tra Tile
         Tile tile = map.getTile(gX, gY);
-        if (tile != null && tile.getType() == TileType.WALL) { // Chỉ WALL chặn
+        // Ghost chỉ bị chặn bởi WALL
+        if (tile != null && tile.getType() == TileType.WALL) {
             return true;
         }
-        if (gameManager != null && gameManager.isBombAtGrid(gX, gY)) { // Bom vẫn chặn
+
+        // Kiểm tra Bomb (Ghost bị chặn bởi Bomb)
+        if (gameManager != null && gameManager.isBombAtGrid(gX, gY)) {
             return true;
         }
-        return false; // Gạch (BRICK) và ô trống không chặn Ghost
+
+        // Ghost có thể đi xuyên qua BRICK, Portal, Item, Grass...
+        return false; // Không phải vật cản cho Ghost
     }
+    // Ghost sử dụng checkMovementCollision của lớp Enemy (đã được sửa)
+    // Ghost sử dụng handleBlockedMovement của lớp Enemy (đã được sửa)
 }

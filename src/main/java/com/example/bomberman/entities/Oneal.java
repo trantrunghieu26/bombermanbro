@@ -10,7 +10,7 @@ public class Oneal extends Enemy {
 
     private static final double ONEAL_SPEED = 75.0; // Tốc độ của Oneal (nhanh hơn Balloom?)
     private static final int ONEAL_SCORE = 200;    // Điểm của Oneal
-    private static final double BFS_UPDATE_INTERVAL = 0.25; // Chạy BFS mỗi 0.5 giây (điều chỉnh)
+    private static final double BFS_UPDATE_INTERVAL = 1.0; // Chạy BFS mỗi 0.5 giây (điều chỉnh)
 
     private double bfsTimer = 0; // Timer để kiểm soát tần suất chạy BFS
     private Queue<Direction> currentPath = new LinkedList<>(); // Hàng đợi lưu đường đi (hoặc chỉ cần hướng tiếp theo)

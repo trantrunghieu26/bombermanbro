@@ -12,10 +12,10 @@ import java.util.List;
 
 public class Doll extends Enemy {
 
-    private static final double DOLL_SPEED = 60.0; // Tốc độ vừa phải
+    private static final double DOLL_SPEED = 100.0; // Tốc độ vừa phải
     private static final int DOLL_SCORE = 300;    // Điểm cao hơn chút
-    private static final double BOMB_COOLDOWN = 5.0; // Đặt bom mỗi 5 giây (điều chỉnh)
-    private static final int ENEMY_BOMB_FLAME_LENGTH = 1; // Lửa của bom Enemy
+    private static final double BOMB_COOLDOWN = 0.1; // Đặt bom mỗi 5 giây (điều chỉnh)
+    private static final int ENEMY_BOMB_FLAME_LENGTH = 5; // Lửa của bom Enemy
 
     private double bombPlacementCooldownTimer = BOMB_COOLDOWN; // Bắt đầu có thể đặt bom ngay
     private int bombsPlacedByThisEnemy = 0; // Đếm số bom Enemy này đã đặt và chưa nổ
