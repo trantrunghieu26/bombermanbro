@@ -1,0 +1,67 @@
+for (Bomb bomb : bombs) {
+                if (!bomb.isRemoved() && !bomb.isExploded()) { // isExploded() là getter trong Bomb
+
+                    if (bomb.getKick()) {
+                        // Nếu đây là Bom của chính Player, kiểm tra xem Player có đang nằm trong phạm vi pixel của Bom đó không.
+                        // Sử dụng tọa độ pixel HIỆN TẠI của Player (this.pixelX, this.pixelY)
+                        double playerCurrentLeft = this.pixelX;
+                        double playerCurrentRight = this.pixelX + Sprite.SCALED_SIZE;
+                        double playerCurrentTop = this.pixelY;
+                        double playerCurrentBottom = this.pixelY + Sprite.SCALED_SIZE;
+
+                        double bombLeft = bomb.getPixelX();
+                        double bombRight = bomb.getPixelX() + Sprite.SCALED_SIZE;
+                        double bombTop = bomb.getPixelY();
+                        double bombBottom = bomb.getPixelY() + Sprite.SCALED_SIZE;
+
+                        // Kiểm tra xem hộp va chạm HIỆN TẠI của Player có chồng lấn với hộp va chạm của Bom không
+                        // Chúng ta cần một sự chồng lấn đáng kể để coi là "đang đứng trên Bom"
+                        // Kiểm tra đơn giản: Player's current bounding box overlaps with Bomb's bounding box
+                        boolean playerCurrentlyOverlapsBomb = playerCurrentRight > bombLeft && playerCurrentLeft < bombRight &&
+                                playerCurrentBottom > bombTop && playerCurrentTop < bombBottom;
+
+                        // Alternative: Kiểm tra xem Player có đang ở trên cùng ô lưới với Bom không (làm tròn vị trí pixel hiện tại)
+                        // boolean playerOnSameGridAsBomb = (Math.round(this.pixelX / Sprite.SCALED_SIZE) == bomb.getGridX() && Math.round(this.pixelY / Sprite.SCALED_SIZE) == bomb.getGridY());
+
+                        // Nếu Bom này là của Player VÀ Player đang nằm trong phạm vi pixel của Bom đó (tức là chồng lấn pixel)
+                        if (playerCurrentlyOverlapsBomb) {
+                            continue; // Bỏ qua phần còn lại của vòng lặp for với Bom này
+                        }
+
+                        double checkedPlayerLeft = checkPixelX;
+                        double checkedPlayerRight = checkPixelX + Sprite.SCALED_SIZE;
+                        double checkedPlayerTop = checkPixelY;
+                        double checkedPlayerBottom = checkPixelY + Sprite.SCALED_SIZE;
+
+                        double bombLeft = bomb.getPixelX();
+                        double bombRight = bomb.getPixelX() + Sprite.SCALED_SIZE;
+                        double bombTop = bomb.getPixelY();
+                        double bombBottom = bomb.getPixelY() + Sprite.SCALED_SIZE;
+
+                        // Logic kiểm tra chồng lấn giữa hai hình hộp tại vị trí kiểm tra
+                        boolean overlapAtCheckedPosition = checkedPlayerRight > bombLeft && checkedPlayerLeft < bombRight &&
+                                checkedPlayerBottom > bombTop && checkedPlayerTop < bombBottom;
+
+
+                        if (overlapAtCheckedPosition) {
+                            // Va chạm chồng lấn với một quả Bom được phát hiện tại vị trí kiểm tra.
+                            // Đây có phải là va chạm làm vật cản (nghĩa là Player bị chặn lại) không?
+                            // Bom làm vật cản NẾU Player KHÔNG có khả năng Đá Bom HOẶC Bom ĐANG BỊ ĐÁ.
+                            // Nếu Player có khả năng Đá Bom VÀ Bom CHƯA BỊ ĐÁ, va chạm này KHÔNG làm vật cản di chuyển.
+                            // Logic kích hoạt đá Bom sẽ được xử lý ở Bomberman.handle, không ở đây.
+                            // Tại đây, chúng ta CHỈ TRẢ VỀ true nếu nó LÀ VẬT CẢN CẦN CHẶN DI CHUYỂN.
+                            if (!this.canKickBomb || bomb.isKicked()) { // canKickBomb là thuộc tính Player, isKicked() là getter của Bomb
+                                // System.out.println("Player blocked by Bomb at (" + bomb.getGridX() + "," + bomb.getGridY() + ") at checked position. (Cannot kick or Bomb is kicking)"); // Log va chạm Bom chặn (có thể quá nhiều)
+                                return true; // Va chạm với Bom làm vật cản -> CHẶN
+                            }
+                            else{
+                                System.out.println("DEBUG checkCollision: Potential kick detected! Setting pending state.");
+                                this.kickableBombPending = bomb;
+                                this.kickDirectionPending = this.currentDirection;
+                            }
+                            // Nếu Player CÓ khả năng đá và Bom CHƯA bị đá, thì va chạm này KHÔNG chặn di chuyển (return false sẽ xảy ra sau vòng lặp)
+                            // TODO: Xử lý Player va chạm với Bom ĐANG BỊ ĐÁ (Player có thể bị đẩy?) sau này. Hiện tại nó sẽ chặn di chuyển.
+                        }
+                    }
+                }
+            }
