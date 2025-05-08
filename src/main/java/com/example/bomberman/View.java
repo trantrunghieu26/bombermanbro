@@ -22,7 +22,7 @@ public class View {
 
     // attributes//////////////////
 
-    private Random random;
+    private Random random = new Random();
     private final List<TemporaryAnimation> temporaryAnimations = new ArrayList<>();
 
     // Method
@@ -30,7 +30,7 @@ public class View {
     public View() {};
 
     public void renderForAllPLAYING(Controller gameManager) {
-        if (gameManager.gc == null) return;
+        if (gameManager.gc == null) {return;}
         gameManager.gc.clearRect(0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
 
         // --- 2. Vẽ Nền Thanh UI ---
@@ -163,7 +163,7 @@ public class View {
         // --- Định dạng chữ ---
         gameManager.gc.setFill(Color.WHITE); // Màu chữ
         Font uiFont = Font.font("Arial", 20); // Chọn Font
-        gameManager.gc.setFont(uiFont);
+        gameManager.gc.setFont(Bomberman.uiFont);
 
         // --- Tính toán vị trí ---
         double padding = 10; // Khoảng cách lề

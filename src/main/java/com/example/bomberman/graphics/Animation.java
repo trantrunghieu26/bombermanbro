@@ -15,30 +15,45 @@ public class Animation {
         this.totalDuration = frameDuration * frames.length;
     }
 
-    // Lấy frame Sprite hiện tại dựa trên thời gian đã trôi qua (animationTime)
-    public Sprite getFrame(double animationTime) {
+    // Phương thức lấy frame hiện tại dựa trên thời gian đã trôi qua
+    public Sprite getFrame(double animationTimer) {
         if (frames == null || frames.length == 0) {
-            return null; // Không có frame nào
+            return null; // Trả về null nếu không có frame nào
         }
 
-        double time = animationTime;
+        // Nếu không lặp và animation đã kết thúc, trả về frame cuối cùng hoặc null
+        if (!loop && animationTimer >= totalDuration) {
+            return frames[frames.length - 1]; // Trả về frame cuối cùng
+            // Hoặc có thể trả về null nếu muốn animation biến mất hoàn toàn sau khi kết thúc
+            // return null;
+        }
+
+        // Tính toán chỉ mục frame hiện tại
+        // Sử dụng phép chia lấy phần dư (%) để xử lý animation lặp
+        int frameIndex = (int) ((animationTimer / frameDuration));
+
         if (loop) {
-            // Nếu lặp lại, lấy phần dư của thời gian so với tổng thời gian animation
-            time = animationTime % totalDuration;
+            frameIndex = frameIndex % frames.length; // Đảm bảo chỉ mục nằm trong giới hạn khi lặp
         } else {
-            // Nếu không lặp lại, giới hạn thời gian trong tổng thời gian animation
-            time = Math.min(animationTime, totalDuration);
+            // Đảm bảo chỉ mục không vượt quá giới hạn khi không lặp
+            frameIndex = Math.min(frameIndex, frames.length - 1);
         }
 
-        // Tính chỉ số frame dựa trên thời gian và thời gian hiển thị mỗi frame
-        int frameIndex = (int) (time / frameDuration);
 
-        // Đảm bảo chỉ số frame nằm trong phạm vi mảng
-        if (frameIndex >= frames.length) {
-            frameIndex = frames.length - 1; // Giữ ở frame cuối nếu không lặp và hết thời gian
-        }
-
+        // Trả về Sprite tương ứng với chỉ mục frame
         return frames[frameIndex];
+    }
+
+    // --- Phương thức mới để kiểm tra xem animation đã kết thúc chưa (chỉ dùng cho non-looping) ---
+    public boolean isFinished(double animationTimer) {
+        // Animation được coi là kết thúc khi thời gian đã trôi qua lớn hơn hoặc bằng tổng thời gian của animation
+        // Phương thức này chỉ thực sự có ý nghĩa cho animation KHÔNG lặp lại
+        return !loop && animationTimer >= totalDuration;
+    }
+
+    // --- Getters ---
+    public double getFrameDuration() {
+        return frameDuration;
     }
 
     public double getTotalDuration() {
@@ -47,5 +62,9 @@ public class Animation {
 
     public boolean isLooping() {
         return loop;
+    }
+
+    public int getFrameCount() {
+        return frames.length;
     }
 }

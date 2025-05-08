@@ -19,7 +19,6 @@ public enum TileType {
 
     // Phương thức tiện ích để lấy TileType từ ký tự
     public static TileType fromChar(char ch) {
-
         for (TileType type : values()) {
             if (type.getMapChar() == ch) {
                 return type;
@@ -27,7 +26,6 @@ public enum TileType {
         }
         // Xử lý các ký tự động (người chơi, quái vật, item)
         // Mặc định coi ô dưới các thực thể này là EMPTY
-
         switch (ch) {
             case 'p': // Player start
             case '1': // Enemy Balloom
@@ -36,6 +34,7 @@ public enum TileType {
             case 'f': // Powerup Flames
             case 's': // Powerup Speed
             case 'l': // Powerup Flamepass
+            case 'a': // Powerup Kickbomb
                 return EMPTY; // Các thực thể này nằm trên ô trống
             default:
                 // Có thể ném ngoại lệ hoặc trả về một loại mặc định khác nếu gặp ký tự lạ

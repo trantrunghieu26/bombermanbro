@@ -6,6 +6,7 @@ import com.example.bomberman.Map.Tile;
 import com.example.bomberman.Map.TileType;
 import com.example.bomberman.graphics.Sprite;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -22,6 +23,10 @@ public abstract class Entity {
     protected int gridX;
     protected int gridY;
 
+    // Kích thước của thực thể (thường bằng kích thước của Sprite)
+    protected int width = Sprite.SCALED_SIZE;
+    protected int height = Sprite.SCALED_SIZE;
+
     // Sprite hiện tại của thực thể để vẽ
     protected Sprite sprite;
 
@@ -33,7 +38,6 @@ public abstract class Entity {
     //     //     Methods       //                   //
 
     public Entity(int gridX, int gridY, Map map) {
-
         this.gridX = gridX;
         this.gridY = gridY;
 
@@ -114,7 +118,6 @@ public abstract class Entity {
             }
         }
 
-        // If all checked tiles are walkable, no collision detected
         return false; // No collision
     }
 
@@ -133,11 +136,20 @@ public abstract class Entity {
     // Tính toán và trả về vị trí lưới dựa trên vị trí pixel hiện tại (làm tròn)
     public int getGridX() { return (int) Math.round(pixelX / Sprite.SCALED_SIZE); }
     public int getGridY() { return (int) Math.round(pixelY / Sprite.SCALED_SIZE); }
+    public int getWidth() {
+        return width;
+    }
+    public int getHeight() {
+        return height;
+    }
     public Sprite getSprite() { return sprite; }
     public boolean isRemoved() { return removed; }
-
+    public void setPixelX(double x) { this.pixelX = x; }
+    public void setPixelY(double y) { this.pixelY = y; }
     // Phương thức đánh dấu thực thể cần loại bỏ ở cuối vòng lặp update
     public void remove() {
         removed = true;
     }
+    public void setRemoved(boolean removed) { this.removed = removed; }
+    public Map getMap() { return this.map; }
 }

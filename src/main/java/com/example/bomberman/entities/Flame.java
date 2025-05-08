@@ -1,5 +1,6 @@
 package com.example.bomberman.entities;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite; // Import lớp Sprite
 import javafx.scene.canvas.GraphicsContext;
@@ -20,6 +21,7 @@ public class Flame extends Entity {
 
     private FlameType type;
     private Animation flameAnimation;
+
     private double animationTime = 0; // Thời gian đã trôi qua cho animation lửa
     private double lifespan = 0.5; // Thời gian ngọn lửa tồn tại (giây). Điều chỉnh giá trị này.
 
@@ -28,6 +30,11 @@ public class Flame extends Entity {
         // Vị trí dựa trên ô lưới, sprite ban đầu sẽ được set trong setAnimation
         super(gridX, gridY, Sprite.nul); // sprite ban đầu có thể là null hoặc một sprite mặc định
         this.type = type;
+
+        // --- Initialize animations ---
+        // Thời gian hiển thị mỗi frame cho animation ngọn lửa
+        double frameDuration = 0.1; // Điều chỉnh giá trị này
+        boolean loop = false; // Animation ngọn lửa không lặp lại, chỉ chạy một lần rồi biến mất
 
         // Thiết lập animation dựa trên loại ngọn lửa
         setAnimationForType(type);
@@ -102,7 +109,9 @@ public class Flame extends Entity {
 
     // Phương thức update được gọi mỗi frame
     public void update(double deltaTime) {
-        // Tích lũy thời gian animation
+        if (this.isRemoved()) {
+            return;
+        }
         animationTime += deltaTime;
 
         // Cập nhật sprite dựa trên thời gian animation
@@ -130,7 +139,7 @@ public class Flame extends Entity {
                 // Vẽ Sprite hiện tại của ngọn lửa
                 // Đảm bảo lửa được vẽ tại vị trí pixel chính xác tương ứng với ô lưới
                 // pixelX và pixelY đã được tính trong constructor Entity
-                gc.drawImage(this.sprite.getFxImage(), pixelX, pixelY);
+                gc.drawImage(this.sprite.getFxImage(), pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT);
             } else {
                 System.err.println("Warning: Flame entity without sprite at (" + gridX + ", " + gridY + ")");
             }
@@ -144,7 +153,23 @@ public class Flame extends Entity {
     // Cần các getter cho vị trí lưới để kiểm tra va chạm
     public int getGridX() { return gridX; }
     public int getGridY() { return gridY; }
+    public double getLifespan() { return this.lifespan; }
+    public double getAnimationTime() { return this.animationTime; }
 
+    public double getLastPixelX(double deltaTime) {
+        if (this.animationTime < deltaTime) {
+            return -1.0;
+        } else {
+            return this.pixelX;
+        }
+    }
 
-    // TODO: Getters khác nếu cần (ví dụ: trạng thái active)
+    public double getLastPixelY(double deltaTime) {
+        if (this.animationTime < deltaTime) {
+            return -1.0;
+        } else {
+            return this.pixelY;
+        }
+    }
+
 }

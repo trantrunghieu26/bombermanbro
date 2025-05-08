@@ -29,7 +29,7 @@ public class Sprite {
     | Board sprites
     |--------------------------------------------------------------------------
      */
-    public static Sprite grass = new Sprite(DEFAULT_SIZE, 6, 0, SpriteSheet.tiles1, 16, 16);
+    public static Sprite grass = new Sprite(DEFAULT_SIZE, 6, 0, SpriteSheet.tiles, 16, 16);
     public static Sprite brick = new Sprite(DEFAULT_SIZE, 7, 0, SpriteSheet.tiles, 16, 16);
     public static Sprite wall = new Sprite(DEFAULT_SIZE, 5, 0, SpriteSheet.tiles, 16, 16);
     public static Sprite portal = new Sprite(DEFAULT_SIZE, 4, 0, SpriteSheet.tiles, 14, 14);
@@ -207,8 +207,8 @@ public class Sprite {
     public static Sprite powerupFlames = new Sprite(DEFAULT_SIZE, 1, 10, SpriteSheet.tiles, 16, 16);
     public static Sprite powerupSpeed = new Sprite(DEFAULT_SIZE, 2, 10, SpriteSheet.tiles, 16, 16);
     public static Sprite powerupWallpass = new Sprite(DEFAULT_SIZE, 3, 10, SpriteSheet.tiles, 16, 16);
-    public static Sprite powerupDetonator = new Sprite(DEFAULT_SIZE, 4, 10, SpriteSheet.tiles, 16, 16);
-    public static Sprite powerupBombpass = new Sprite(DEFAULT_SIZE, 5, 10, SpriteSheet.tiles, 16, 16);
+    public static Sprite powerupLife = new Sprite(DEFAULT_SIZE, 4, 10, SpriteSheet.tiles, 16, 16);
+    public static Sprite powerupKickBomb = new Sprite(DEFAULT_SIZE, 5, 10, SpriteSheet.tiles, 16, 16);
     public static Sprite powerupFlamepass = new Sprite(DEFAULT_SIZE, 6, 10, SpriteSheet.tiles, 16, 16);
 
 
@@ -263,10 +263,18 @@ public class Sprite {
         }
         // Thực hiện resampling một lần tại đây và lưu kết quả
         Image input = new ImageView(wr).getImage();
-        this.fxImage = resample(input, (double)SCALED_SIZE / DEFAULT_SIZE);
+        double scaleFactor;
+        if (this.SIZE == SCALED_SIZE) {
+            scaleFactor = 1.0;
+            this.fxImage = input;
+        } else if (this.SIZE > 0) {
+            scaleFactor = (double)SCALED_SIZE / this.SIZE;
+            this.fxImage = resample(input, scaleFactor);
+        } else {
+            this.fxImage = input; // Hoặc trả về ảnh lỗi
+        }
     }
-
-
+    
     // --- Sửa phương thức getFxImage() để trả về Image đã tạo sẵn ---
     public Image getFxImage() {
         return this.fxImage; // Trả về Image đã được tạo và lưu trữ

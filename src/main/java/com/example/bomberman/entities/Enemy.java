@@ -1,5 +1,6 @@
 package com.example.bomberman.entities;
 
+import com.example.bomberman.Bomberman;
 import com.example.bomberman.Map.Map;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
@@ -129,7 +130,7 @@ public class Enemy extends Entity {
 
             // Kiểm tra va chạm với bản đồ (đơn giản, có thể cải tiến)
 
-            if (!checkCollision(newPixelX, newPixelY)) {
+            if (!super.checkCollision(newPixelX, newPixelY)) {
                 pixelX = newPixelX;
                 pixelY = newPixelY;
                 gridX = newGridX;
@@ -162,7 +163,7 @@ public class Enemy extends Entity {
             currentImage = walkLeftAnimation.getFrame(animationTimer).getFxImage(); // Default
         }
 
-        gc.drawImage(currentImage, this.pixelX, this.pixelY);
+        gc.drawImage(currentImage, pixelX, pixelY+ Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
     }
 
     public void takeHit() {
@@ -222,5 +223,29 @@ public class Enemy extends Entity {
 
     public static boolean isCharOfEnemy(char ch) {
         return ch == '1' || ch == '2' || ch == '3' || ch == '4' || ch == '5' || ch == '6';
+    }
+
+    public double getLastPixelX(double deltaTime) {
+        double deltaPixelX = 0;
+
+        switch (currentDirection) {
+            case LEFT: deltaPixelX = -speed * deltaTime; break;
+            case RIGHT: deltaPixelX = speed * deltaTime; break;
+            case NONE: deltaPixelX = 0.0;
+        }
+
+        return pixelX - deltaPixelX;
+    }
+
+    public double getLastPixelY(double deltaTime) {
+        double deltaPixelY = 0;
+
+        switch (currentDirection) {
+            case UP: deltaPixelY = -speed * deltaTime; break;
+            case DOWN: deltaPixelY = speed * deltaTime; break;
+            case NONE: deltaPixelY = 0.0;
+        }
+
+        return pixelY - deltaPixelY;
     }
 }

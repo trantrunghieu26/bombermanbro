@@ -26,7 +26,7 @@ public class Controller {
     //               //    attributes        //        //
 
     private Random random = new Random();
-    public View view;
+    public View view = new View();
     private int score = 0;
     public static final int UI_PANEL_HEIGHT = 32;
     private java.util.Map<String, Character> hiddenItemsData;
@@ -65,13 +65,13 @@ public class Controller {
 
     //             //         Method             //     //
 
-    public Controller() {
-        this.view = new View();
-    }
+    public Controller() {}
 
-    public void controllerActive(int level) {
+    public void controllerActive(Bomberman myGame) {
         try {
-            System.out.println("Loading level " + level + "..."); // Log bắt đầu tải level
+            System.out.println("Loading level " + myGame.currentLevel + "..."); // Log bắt đầu tải level
+
+            this.view = new View();
 
             this.score = 0;
             this.levelTimeRemaining = LEVEL_DURATION_SECONDS;
@@ -93,10 +93,13 @@ public class Controller {
                 view.getTemporaryAnimations().clear();
             }
             player = null; // Đặt player về null trước khi tạo mới
+            this.gameMap = null;
+            this.mapData = null;
 
-            MapData mapData = new MapData(level);
-            this.mapData = mapData;
-            gameMap = new Map(mapData);
+            this.mapData = new MapData(myGame.currentLevel);
+            this.mapData.setLevel(myGame.currentLevel);
+            this.gameMap = new Map(mapData);
+
 
             // --- 2. Lấy thông tin Item được giấu từ MapData ---
             // hiddenItemsData là java.util.Map
@@ -188,13 +191,28 @@ public class Controller {
                 bto.add(player.getBombs());
             }
 
-            // Lưu vị trí portal và hidden items nếu cần dùng về sau
-            // this.portalGridX = portalGridX;
-            // this.portalGridY = portalGridY;
-            // this.hiddenItemsData = hiddenItemsData;
+            System.out.println("Load new game successfully!");
+
+            myGame.view = this.view;
+
+            // Kiểm tra canvas và player không null sau khi loadLevel
+            if (this.canvas == null || this.getPlayer() == null) {
+                System.err.println("Fatal Error: Game initialization failed during level loading.");
+                // TODO: Hiển thị thông báo lỗi cho người dùng và thoát game
+                return;
+            }
+
+            myGame.getPrimaryStage().setScene(this.scene);
+
+            myGame.inputHandler = new InputHandler(this.scene, this.player, myGame);
+
+            myGame.getPrimaryStage().show();
+
+            System.out.println("load full for game!");
+
         } catch (Exception e) {
             // Bắt bất kỳ ngoại lệ nào xảy ra trong quá trình tải level
-            System.err.println("Error loading level " + level + ": " + e.getMessage());
+            System.err.println("Error loading level " + myGame.currentLevel + ": " + e.getMessage());
             e.printStackTrace(); // In stack trace để xem chi tiết lỗi
             // TODO: Xử lý lỗi tải level (ví dụ: hiển thị thông báo lỗi cho người chơi, thoát game)
             // Đặt canvas và player về null để start() biết rằng có lỗi
@@ -208,10 +226,11 @@ public class Controller {
     public List<List<Bomb>> getBto() { return this.bto; }
 
     // *** PHƯƠNG THỨC KIỂM TRA VA CHẠM CHUNG (ĐÃ SỬA ĐỔI VÀ THÊM LOGIC) ***
-    public void checkCollisions() {
+    public void checkCollisions(double deltaTime) {
         // --- Kiểm tra va chạm Player với Enemy ---
         // Duyệt qua danh sách Enemies
-        if (player != null && player.isAlive() && !player.isInvincible()) { // Chỉ kiểm tra nếu Player còn sống và không bất tử
+        // Chỉ kiểm tra nếu Player còn sống và không bất tử
+        if (player != null && player.isAlive() && !player.isInvincible()) {
             Iterator<Enemy> enemyIterator = this.enemies.iterator();
             while (enemyIterator.hasNext()) {
                 Enemy enemy = enemyIterator.next();
@@ -219,11 +238,15 @@ public class Controller {
                 if (!enemy.isAlive()) continue;
 
                 // Kiểm tra va chạm giữa Player và Enemy bằng Bounding Box
-                if (checkCollision(player.getPixelX(), player.getPixelY(), enemy.getPixelX(), enemy.getPixelY())) {
-                    // TODO: Xử lý Player bị trúng đòn bởi Enemy
+                if (checkCollision(player.getPixelX(), player.getPixelY(), enemy.getPixelX(), enemy.getPixelY()) &&
+                    !checkCollision(player.getLastPixelX(deltaTime), player.getLastPixelY(deltaTime), enemy.getLastPixelX(deltaTime), enemy.getLastPixelY(deltaTime))) {
                     System.out.println("Player collided with Enemy at (" + enemy.getGridX() + ", " + enemy.getGridY() + ")");
-                    player.die(); // Tạm thời cho Player chết
-                    // TODO: Xử lý game over
+                    if (this.player.getLives() > 0) {
+                        this.player.decreaseLive();
+                        return;
+                    } else {
+                        this.player.die();
+                    }
                 }
             }
         }
@@ -241,9 +264,15 @@ public class Controller {
             // Kiểm tra va chạm giữa Flame và Bounding Box của Player (đã có logic này)
             // Chỉ kiểm tra nếu Player chưa chết VÀ chưa bất tử
             if (player != null && player.isAlive() && !player.isInvincible()) {
-                if (checkCollision(player.getPixelX(), player.getPixelY(), flame.getPixelX(), flame.getPixelY())) {
+                if (checkCollision(player.getPixelX(), player.getPixelY(), flame.getPixelX(), flame.getPixelY()) &&
+                    !checkCollision(player.getLastPixelX(deltaTime), player.getLastPixelY(deltaTime), flame.getLastPixelX(deltaTime), flame.getLastPixelY(deltaTime))) {
                     System.out.println("Player hit by flame at (" + flameGridX + ", " + flameGridY + ")");
-                    player.die(); // Gọi phương thức die() của Player
+                    if (this.player.getLives() > 0) {
+                        this.player.decreaseLive();
+                        return;
+                    } else {
+                        this.player.die();
+                    }
                 }
             }
 
@@ -257,36 +286,13 @@ public class Controller {
                 if (checkCollision(enemy.getPixelX(), enemy.getPixelY(), flame.getPixelX(), flame.getPixelY())) {
                     // TODO: Xử lý Enemy bị trúng đòn bởi Flame
                     System.out.println("Enemy hit by flame at (" + enemy.getGridX() + ", " + enemy.getGridY() + ")");
-                    enemy.takeHit(); // Gọi phương thức takeHit() của Enemy
-                    // Sau khi enemy chết, ngọn lửa có thể biến mất hoặc tồn tại hết đời tùy game
-                    // Tạm thời để ngọn lửa tồn tại hết vòng đời animation của nó.
-                    // flame.remove(); // Nếu muốn lửa biến mất ngay sau khi tiêu diệt quái vật
+                    enemy.takeHit();
                 }
             }
 
             // --- Kiểm tra va chạm Flame với Bricks (Gạch phá hủy được) ---
-            // Lửa sẽ phá hủy gạch và dừng lại ở đó (logic dừng lan đã ở triggerExplosionAt)
-            // Giờ là logic phá hủy gạch khi ngọn lửa đang tồn tại trên ô đó
-            // Chỉ phá hủy gạch một lần bởi một ngọn lửa
-            Tile tile = gameMap.getTile(flameGridX, flameGridY);
-            if (tile != null && (tile.getType() == TileType.BRICK || tile.getType() == TileType.BOMB)) {
-                // TODO: Phá hủy gạch (cập nhật tile trên map)
-                // Chỉ thay đổi loại Tile nếu nó vẫn là BRICK (tránh phá nhiều lần)
-                    System.out.println("Flame destroyed brick at (" + flameGridX + ", " + flameGridY + ")");
-                    gameMap.setTile(flameGridX, flameGridY, Tile.createTileFromChar(flameGridX, flameGridY, ' ')); // Thay brick thành EMPTY tile
-                    // TODO: Có khả năng tạo Item tại vị trí này sau khi phá hủy gạch
-            }
-
-            // TODO: Kiểm tra va chạm Flame với Items
-            // TODO: Kiểm tra va chạm Flame với Bombs khác (kích nổ dây chuyền)
-
-        } // Hết vòng lặp Flames
-
-
-        // TODO: Kiểm tra va chạm Player với Item
-        // TODO: Kiểm tra va chạm Player với Bomb (khi Bomb đã đặt và Player muốn đi vào ô đó)
-        // TODO: Kiểm tra va chạm Enemy với Bomb (enemy không đi qua bomb)
-        // TODO: Kiểm tra va chạm Enemy với Item (enemy không nhặt item)
+            this.brickHitByFlame(flameGridX, flameGridY);
+        }
     }
 
     // *** PHƯƠNG THỨC HELPER KIỂM TRA VA CHẠM GIỮA HAI HỘP VA CHẠM (Bounding Box) ***
@@ -315,7 +321,7 @@ public class Controller {
         //        effectiveY1 < effectiveY2 + effectiveSize2 && effectiveY1 + effectiveSize1 > effectiveY2;
     }
 
-    public void updateForAll(double deltaTime, Bomberman myGame, Stage primaryStage) {
+    public void updateForAll(double deltaTime, Bomberman myGame) {
         // --- Vòng lặp Update ---
 
         if (levelTimeRemaining > 0) { // Chỉ đếm ngược nếu thời gian còn > 0
@@ -383,12 +389,12 @@ public class Controller {
 
         handleKickBombTrigger();
         handlePlayerItemCollisions();
-        this.checkCollisions();
-        handlePortalTransition(myGame, primaryStage);
+        this.checkCollisions(deltaTime);
+        handlePortalTransition(myGame);
 
     }
 
-    public void handlePortalTransition(Bomberman myGame, Stage primaryStage){
+    public void handlePortalTransition(Bomberman myGame){
         if (player != null && player.isAlive() && portalActivated && portalGridX != -1) {
 
             // --- Tính toán vị trí TÂM của Player ---
@@ -417,15 +423,16 @@ public class Controller {
                     System.out.println("Time Bonus: " + timeBonus);
                     addScore(timeBonus); // Gọi hàm cộng điểm của Bomberman
                 }
-                myGame.currentLevel++;
+                myGame.currentLevel += 1;
                 if (myGame.currentLevel <= MAX_LEVEL) {
                     System.out.println("Loading next level: " + myGame.currentLevel);
-                    controllerActive(myGame.currentLevel);
+                    myGame.con.controllerActive(myGame);
+                    myGame.view = this.view;
                 } else {
                     System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
-                    if (primaryStage != null) primaryStage.close();
+                    if (myGame.getPrimaryStage() != null) myGame.getPrimaryStage().close();
                 }
-                // return;
+                return;
             }
         }
     }
@@ -485,7 +492,7 @@ public class Controller {
     public void brickHitByFlame(int gridX, int gridY) {
         // Kiểm tra biên
         if (gridX >= 0 && gridX < mapData.getCols() && gridY >= 0 && gridY < mapData.getRows()) {
-            Tile tile = gameMap.getTile(gridX, gridY);
+            Tile tile = this.gameMap.getTile(gridX, gridY);
             // Kiểm tra xem ô đó có phải là gạch không và chưa bị phá hủy
             if (tile != null && tile.getType() == TileType.BRICK) {
                 System.out.println("Flame hit brick at (" + gridX + ", " + gridY + "). Notifying game manager."); // Log
@@ -569,7 +576,6 @@ public class Controller {
 
     public void startGame(Bomberman myGame) {
         System.out.println("Starting game...");
-        myGame.currentLevel = 1;
         myGame.currentState = GameState.PLAYING;
     }
 
