@@ -11,18 +11,13 @@ import javafx.scene.image.Image;
 
 import java.util.*;
 
-public abstract class Enemy extends Entity { // Kế thừa từ Entity
+public abstract class Enemy extends Entity {
 
-    // --- Thuộc tính vị trí và di chuyển (Đã có trong Entity) ---
-    // protected double x; // Sử dụng x từ Entity
-    // protected double y; // Sử dụng y từ Entity
-    // protected int gridX; // Sử dụng gridX từ Entity
-    // protected int gridY; // Sử dụng gridY từ Entity
 
-    protected double speed; // Tốc độ riêng của mỗi loại Enemy
+    protected double speed;
     protected Direction currentDirection = Direction.NONE;
     protected boolean isMoving = false;
-    protected Random random = new Random(); // Để di chuyển ngẫu nhiên cho Enemy cơ bản
+    protected Random random = new Random();
 
     // --- Thuộc tính trạng thái (isAlive, active đã có trong Entity) ---
     // protected boolean active = true; // Sử dụng active từ Entity
@@ -31,18 +26,15 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
     protected final double TIME_TO_DIE = 0.8; // Thời gian animation chết (giây)
     protected int scoreValue; // Điểm nhận được khi tiêu diệt
 
-    // --- Tham chiếu ---
     protected Map map;
-    protected Bomberman gameManager; // Sẽ được refactor sau này
+    protected Bomberman gameManager;
 
-    // --- Animation ---
     protected Animation walkLeftAnimation;
     protected Animation walkRightAnimation;
     protected Animation deadAnimation;
     protected Animation currentAnimation;
     protected double animationTimer = 0;
 
-    // Thêm thuộc tính để lưu hướng cuối cùng không phải NONE (cho animation đứng yên)
     protected Direction lastNonNoneDirection = Direction.DOWN; // Mặc định hướng xuống
 
     // --- Thêm các thuộc tính mới để xử lý bị kẹt ---
@@ -50,15 +42,14 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
     private int consecutiveBlocks = 0;
     private final int MAX_CONSECUTIVE_BLOCKS = 4; // Ngưỡng bị kẹt: Số lần liên tiếp bị chặn theo cùng một hướng
 
-    // Constructor
+
     public Enemy(int startGridX, int startGridY, double speed, int scoreValue, Map map, Bomberman gameManager) {
-        // Gọi constructor của lớp cha Entity
-        super(startGridX, startGridY, null); // Entity cần một Image ban đầu, hoặc sửa Entity để chấp nhận null
+        super(startGridX, startGridY, null);
 
         // Cập nhật vị trí pixel và lưới từ Entity sau khi gọi super()
         this.gridX = startGridX;
         this.gridY = startGridY;
-        this.x = startGridX * Sprite.SCALED_SIZE; // Đảm bảo x, y cũng được set
+        this.x = startGridX * Sprite.SCALED_SIZE;
         this.y = startGridY * Sprite.SCALED_SIZE;
 
         this.speed = speed;
@@ -66,8 +57,6 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
         this.map = map;
         this.gameManager = gameManager;
         this.isAlive = true; // Bắt đầu là sống
-
-        // animation sẽ được khởi tạo trong lớp con
 
         // Chọn hướng di chuyển ban đầu ngẫu nhiên
         setRandomDirection(); // Enemy bắt đầu bằng cách chọn hướng ngẫu nhiên đầu tiên
@@ -84,7 +73,6 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
     // --- Phương thức cập nhật chung ---
     @Override // Override từ Entity
     public void update(double deltaTime) {
-        // Nếu không còn active (đã bị xóa khỏi game), không update gì cả
         if (!isActive()) return; // Sử dụng cờ active từ Entity
 
         // Nếu đang trong quá trình chết (animation chết đang chạy)
@@ -107,8 +95,6 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
 
         // Cập nhật vị trí lưới sau khi di chuyển
         updateGridPosition(); // Di chuyển updateGridPosition xuống đây
-
-        // Kiểm tra va chạm với Flame (có thể làm ở Bomberman.java hoặc CollisionManager)
         // checkFlameCollisions();
     }
 
@@ -130,7 +116,6 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
         double deltaPixelX = 0;
         double deltaPixelY = 0;
 
-        // Tính toán thay đổi vị trí dự kiến cho frame này
         switch (currentDirection) {
             case UP:    deltaPixelY = -speed * deltaTime; break;
             case DOWN:  deltaPixelY = speed * deltaTime; break;
@@ -144,12 +129,10 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
 
         boolean collided = false;
 
-        // --- Xử lý va chạm trục X và di chuyển/neo ---
         if (deltaPixelX != 0) {
             // Kiểm tra va chạm tại vị trí X mới (nextPixelX), Y cũ (y)
             if (checkMovementCollision(nextPixelX, y)) {
                 collided = true;
-                // Nếu bị chặn, neo Enemy lại sát cạnh vật cản theo trục X
                 if (deltaPixelX > 0) { // Di chuyển sang phải
                     x = (int) Math.floor((x + width) / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE - width;
                 } else { // Di chuyển sang trái
@@ -217,10 +200,8 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
             // Reset bộ đếm và hướng bị chặn
             consecutiveBlocks = 0;
             lastAttemptedDirection = Direction.NONE;
-            // Gọi setRandomDirection() để chọn một hướng ngẫu nhiên khả thi
-            // setRandomDirection() sẽ dùng canMoveTowards đã cải tiến
+
             setRandomDirection();
-            // System.out.println("ENEMY DEBUG: Forced setRandomDirection() chose: " + currentDirection); // Log
             return; // Đã tìm hướng mới hoặc không tìm được, thoát
         }
 
@@ -249,8 +230,6 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
         for (Direction alternativeDir : alternativeDirections) {
             // Chỉ kiểm tra xem hướng mới có thể BẮT ĐẦU đi được không
             if (canMoveTowards(alternativeDir)) { // Sử dụng canMoveTowards đã cải tiến
-                // System.out.println("ENEMY DEBUG: Found alternative direction (perpendicular): " + alternativeDir); // Log
-                // Đặt hướng mới và trạng thái di chuyển
                 currentDirection = alternativeDir;
                 isMoving = true;
                 // KHÔNG reset consecutiveBlocks/lastAttemptedDirection ở đây.
@@ -554,14 +533,9 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
 
     // --- Getters ---
     public boolean isAlive() { return isAlive; } // Getter cho trạng thái sống game play
-    // Getters cho pixelX, pixelY, gridX, gridY đã có trong Entity
-    // public double getPixelX() { return x; } // Đã có getX() trong Entity
-    // public double getPixelY() { return y; } // Đã có getY() trong Entity
-    // public int getGridX() { return gridX; } // Đã có getGridX() trong Entity
-    // public int getGridY() { return gridY; } // Đã có getGridY() trong Entity
 
     public double getDyingTimer() { return dyingTimer; }
-    public double getTimeToDie() { return TIME_TO_DIE; } // Cần getter này để Bomberman xóa Entity
+    public double getTimeToDie() { return TIME_TO_DIE; } //  getter này để Bomberman xóa Entity
 
 
     public boolean isMoving() { return isMoving; } // Getter cho isMoving

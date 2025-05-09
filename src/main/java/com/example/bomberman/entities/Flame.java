@@ -114,20 +114,7 @@ public class Flame {
             }
         }
 
-        // TODO: Kiểm tra va chạm với các thực thể khác (Player, Enemy, Bomb, Item)
-        // Logic này có thể ở đây hoặc ở lớp quản lý game (Bomberman)
-        // if (active) { // Chỉ kiểm tra va chạm nếu ngọn lửa còn active
-        //    checkCollisionWithEntities(); // Cần phương thức này
-        // }
     }
-
-    // TODO: Phương thức kiểm tra va chạm với các thực thể khác
-    // private void checkCollisionWithEntities() {
-    //     // Cần truy cập danh sách các thực thể từ Bomberman
-    //     // Duyệt qua danh sách Player, Enemies, Items, Bombs
-    //     // Kiểm tra xem hộp va chạm của Flame có giao với hộp va chạm của thực thể khác không
-    //     // Nếu có va chạm, xử lý tương tác (ví dụ: gọi entity.takeDamage(), entity.explode() cho bomb...)
-    // }
 
 
     // Phương thức được gọi bởi Vòng lặp Game để vẽ Flame

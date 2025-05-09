@@ -56,7 +56,6 @@ public class PlayingController implements SceneController {
         bomberman.handlePlayerFlameCollisions();
         bomberman.handlePlayerEnemyCollisions(); // Gọi hàm này
         bomberman.handleFlameEnemyCollisions();
-        // bomberman.updateEnemies(deltaTime); // TODO
 
         // --- Cập nhật trạng thái Portal (logic gốc là luôn bật) ---
         if (!portalActivated) {
@@ -85,8 +84,6 @@ public class PlayingController implements SceneController {
         bomberman.handleKickBombTrigger();
         bomberman.handleFlameBombCollisions();
         bomberman.handlePlayerItemCollisions();
-        // bomberman.handlePlayerEnemyCollisions(); // TODO
-        // bomberman.handleFlameEnemyCollisions(); // TODO
         bomberman.handlePortalTransition(); // Logic chuyển level nằm trong hàm này của Bomberman
     }
 
@@ -149,8 +146,6 @@ public class PlayingController implements SceneController {
                 // Cách đơn giản: chỉ dừng khi nhả đúng phím hướng đang đi.
             }
         }
-        // Cập nhật lại hướng di chuyển cuối cùng dựa trên phím còn nhấn (nếu cần xử lý phức tạp hơn)
-        // Player cần phương thức để lấy Set các phím đang nhấn hoặc InputHandler cần cung cấp
-        // bomberman.updatePlayerMovementBasedOnPressedKeys(); // Ví dụ
+
     }
 }

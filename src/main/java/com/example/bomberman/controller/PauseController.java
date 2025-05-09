@@ -17,7 +17,7 @@ public class PauseController implements SceneController {
     public PauseController(Bomberman bomberman) {
         this.bomberman = bomberman;
         // Khi vào Pause, yêu cầu InputHandler xóa phím và dừng Player
-        if (bomberman.getInputHandler() != null) { // Cần getter
+        if (bomberman.getInputHandler() != null) {
             bomberman.getInputHandler().clearMovingKeys();
         }
         if (bomberman.getPlayer() != null) {

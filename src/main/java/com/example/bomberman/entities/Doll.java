@@ -5,11 +5,6 @@ import com.example.bomberman.Map.Map;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random; // Đảm bảo Random được import
 
 
 public class Doll extends Enemy {
@@ -74,7 +69,7 @@ public class Doll extends Enemy {
         // và handleBlockedMovement() sẽ cố gắng tìm hướng thay thế hoặc gọi setRandomDirection nếu bị kẹt.
         if (!isMoving || currentDirection == Direction.NONE) {
             setRandomDirection(); // Gọi hàm của lớp Enemy để chọn hướng ngẫu nhiên khả thi
-            // System.out.println("DOLL DEBUG: Not moving/Blocked, called setRandomDirection. New direction: " + currentDirection + ", Speed: " + this.speed); // Log
+
         }
         // Nếu đang di chuyển và không bị chặn, không làm gì ở đây, logic di chuyển và xử lý chặn nằm ở Enemy.move()
     }
@@ -111,11 +106,6 @@ public class Doll extends Enemy {
         // Chọn khoảng thời gian ngẫu nhiên cho lần thay đổi tốc độ tiếp theo
         this.timeToNextSpeedChange = MIN_SPEED_CHANGE_INTERVAL + random.nextDouble() * (MAX_SPEED_CHANGE_INTERVAL - MIN_SPEED_CHANGE_INTERVAL);
     }
-
-
-    // --- Các phương thức liên quan đến Bom vẫn bị loại bỏ ---
-    // (Vẫn giữ nguyên như phiên bản không bom đã sửa lần trước)
-
 
     // Doll sử dụng isObstacle() mặc định của Enemy, coi WALL và BOMB là vật cản.
     // render() và die() sử dụng logic chung của lớp Enemy.

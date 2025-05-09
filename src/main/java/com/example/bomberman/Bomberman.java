@@ -1,9 +1,8 @@
 package com.example.bomberman;
 
-// ---- GIỮ LẠI CÁC IMPORT CẦN THIẾT ----
 import com.example.bomberman.Map.MapData;
-import com.example.bomberman.Map.Tile; // Giữ lại nếu Player.checkCollision cần
-import com.example.bomberman.controller.*; // Import package controller
+import com.example.bomberman.Map.Tile;
+import com.example.bomberman.controller.*;
 import com.example.bomberman.entities.*;
 import com.example.bomberman.entities.Items.*;
 import com.example.bomberman.graphics.Animation;
@@ -17,7 +16,7 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
-import javafx.scene.input.KeyCode; // Thêm KeyCode
+import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -40,10 +39,7 @@ public class Bomberman extends Application {
     public static final int UI_PANEL_HEIGHT = 32;
     private static final double LEVEL_DURATION_SECONDS = 200.0; // Giá trị gốc
     private final int MAX_LEVEL = 5;
-    // Các hằng số animation có thể giữ ở đây hoặc chuyển vào Controller tương ứng
-    // private final double SCORE_ANIMATION_DURATION = 1.5;
-    // private final double GAMEOVER_TEXT_FADE_IN_DURATION = 0.8;
-    // private final double TRANSITION_DURATION = 1.0;
+
 
     // =========================================================================
     // Core Components & Game State
@@ -219,7 +215,6 @@ public class Bomberman extends Application {
             gameOverSound = loadAudioClip("/Sound/GameOver.mp3", "Game Over"); // Sử dụng tên file của bạn
             explosionSound = loadAudioClip("/Sound/amthanhbomno.mp3", "Bomb Explosion");
             bombPlacedSound = loadAudioClip("/Sound/placebomb.mp3", "Bomb Placed");
-            // TODO: Thêm các AudioClip khác tương ứng với file bạn có: EnemyDead, BrickBreak, LevelClear,...
 
         } catch (Exception e) {
             System.err.println("Error loading sound resources: " + e.getMessage());
@@ -305,7 +300,6 @@ public class Bomberman extends Application {
     public void playGameOverSound() { playSound(gameOverSound); }
     public void playBombPlacedSound() {playSound(bombPlacedSound);}
     public void playPlayerWalkSound() {playSound(playerWalkSound); }
-    // TODO: Thêm các phương thức playSound khác: playEnemyDeadSound(), playBrickBreakSound(), ...
     /**
      * Bắt đầu phát âm thanh bước chân (lặp).
      * Được gọi từ Player khi bắt đầu di chuyển.
@@ -453,10 +447,6 @@ public class Bomberman extends Application {
                 break;
         }
 
-        // (Optional) Gọi onEnterState của controller mới nếu có
-        // if (currentController != null && currentController instanceof YourSpecificController) {
-        //     ((YourSpecificController) currentController).onEnterState();
-        // }
     }
 
     /**
@@ -681,7 +671,6 @@ public class Bomberman extends Application {
                 Sprite.brick_exploded, Sprite.brick_exploded1, Sprite.brick_exploded2);
         TemporaryAnimation brickAnim = new TemporaryAnimation(gridX, gridY, brickExplosionAnim);
         temporaryAnimations.add(brickAnim);
-        // TODO: Play sound
     }
 
     private void handleAnimationFinished(TemporaryAnimation finishedAnimation) { // Được gọi từ updateTemporaryAnimations
@@ -790,7 +779,6 @@ public class Bomberman extends Application {
                     requestLoadLevelAndSwitchState(currentLevel, GameState.PLAYING);
                 } else { // Đã hoàn thành level cuối cùng
                     System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
-                    // TODO: Chuyển sang trạng thái GAME_WON thay vì đóng cửa sổ
                     if (primaryStage != null) {
                         primaryStage.close(); // Đóng cửa sổ game
                     }
@@ -863,18 +851,6 @@ public class Bomberman extends Application {
                 boolean overlap = playerRight > flameLeft && playerLeft < flameRight &&
                         playerBottom > flameTop && playerTop < flameBottom;
 
-                // --- Hoặc sử dụng phương pháp kiểm tra khoảng cách tâm (giống PlayerEnemyCollisions) ---
-                // double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
-                // double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
-                // double flameCenterX = flame.getPixelX() + Sprite.SCALED_SIZE / 2.0;
-                // double flameCenterY = flame.getPixelY() + Sprite.SCALED_SIZE / 2.0;
-                // double dx = playerCenterX - flameCenterX;
-                // double dy = playerCenterY - flameCenterY;
-                // double distance = Math.sqrt(dx*dx + dy*dy);
-                // double collisionThreshold = Sprite.SCALED_SIZE * 0.8; // Điều chỉnh ngưỡng va chạm
-
-                // if (distance < collisionThreshold) { ... va chạm ... }
-
 
                 // Nếu có va chạm chồng lấn
                 if (overlap) { // Nếu dùng phương pháp AABB
@@ -927,7 +903,7 @@ public class Bomberman extends Application {
         renderItems(gc);          // Items
         renderBombs(gc);          // Bombs
         renderTemporaryAnimations(gc); // Hiệu ứng nổ gạch,...
-        renderEnemies(gc);     // TODO: Enemies
+        renderEnemies(gc);
         renderFlames(gc);         // Flames (có thể vẽ trên player?)
         if (player != null) player.render(gc); // Player
         // Vẽ UI luôn được gọi sau cùng bởi vòng lặp chính (handle) sau khi controller render

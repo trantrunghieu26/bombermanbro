@@ -1,4 +1,4 @@
-package com.example.bomberman.entities; // Đặt trong package entities hoặc một package riêng cho hiệu ứng
+package com.example.bomberman.entities;
 
 import com.example.bomberman.Bomberman;
 import com.example.bomberman.graphics.Animation;
