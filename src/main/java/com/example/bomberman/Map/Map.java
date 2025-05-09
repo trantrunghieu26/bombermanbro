@@ -18,6 +18,9 @@ public class Map {
         this.gameManager = gameManager; // Lưu tham chiếu
         initializeTiles(); // Gọi phương thức khởi tạo Tile ngay trong constructor
     }
+    public MapData getMapData() {
+        return this.mapData; // Trả về đối tượng mapData mà Map đang giữ
+    }
 
     // --- Phương thức khởi tạo lưới Tile từ MapData (Đã sửa) ---
     private void initializeTiles() {

@@ -30,7 +30,7 @@ public class Bomb {
     private double timeToExplode = 2.0; // Thời gian đếm ngược để nổ (giây). Điều chỉnh giá trị này.
     private double explosionTimer = 0; // Biến đếm thời gian đã trôi qua kể từ khi đặt bom
     private int flameLength; // Bán kính nổ (lấy từ Player khi đặt)
-    private Player owner; // Tham chiếu đến Player đã đặt quả bom này (quan trọng cho logic sau này)
+    private Object owner; // Tham chiếu đến Player đã đặt quả bom này (quan trọng cho logic sau này)
     //--- đá bom---
     private boolean isKicked = false;
     private Direction kickDirection = Direction.NONE;
@@ -55,6 +55,8 @@ public class Bomb {
 
     // --- Danh sách các đối tượng Flame được tạo ra bởi vụ nổ này ---
     private List<Flame> generatedFlames = new ArrayList<>();
+
+
 
 
     // Constructor
@@ -243,8 +245,9 @@ public class Bomb {
 
         System.out.println("Bomb at (" + gridX + ", " + gridY + ") exploded! Flame length: " + flameLength); // Log tạm thời
 
-        // TODO: Phát âm thanh nổ bom
-
+        if (gameManager != null) { // Kiểm tra gameManager không null trước khi gọi
+            gameManager.playExplosionSound(); // << THÊM DÒNG NÀY
+        }
         // --- Logic tạo các đối tượng Flame lan tỏa ra các hướng ---
 
         // Tạo Flame ở tâm vụ nổ (vị trí của bom)
@@ -446,7 +449,7 @@ public class Bomb {
     public boolean isExploded() { return exploded; }
     public boolean isActive() { return active; }
     public int getFlameLength() { return flameLength; }
-    public Player getOwner() { return owner; }
+    public Object getOwner() { return owner; }
 
     // --- Getter mới để lấy danh sách Flame đã tạo ---
     public List<Flame> getGeneratedFlames() {

@@ -23,8 +23,8 @@ public abstract class Item {
     protected boolean active = true; // Trạng thái hoạt động (có còn tồn tại trên bản đồ không)
 
     // TODO: Thêm animation cho Item nếu cần (ví dụ: nhấp nháy)
-     protected Animation animation;
-     protected double animationTimer = 0;
+    protected Animation animation;
+    protected double animationTimer = 0;
 
 
     // Constructor
@@ -43,14 +43,14 @@ public abstract class Item {
         this.sprite = sprite; // Gán sprite cho vật phẩm
 
         // TODO: Khởi tạo animation nếu có
-         if (this.sprite != null) {
-             double frameDuration = 0.25; // Ví dụ: mỗi frame (chỉ có 1 frame) tồn tại 0.25s
-             boolean loop = true;
-             this.animation = new Animation(frameDuration, loop, this.sprite);
-         }
-         else {
-             this.animation = null; // Không có animation nếu không có sprite gốc
-         }
+        if (this.sprite != null) {
+            double frameDuration = 0.25; // Ví dụ: mỗi frame (chỉ có 1 frame) tồn tại 0.25s
+            boolean loop = true;
+            this.animation = new Animation(frameDuration, loop, this.sprite);
+        }
+        else {
+            this.animation = null; // Không có animation nếu không có sprite gốc
+        }
     }
 
 
@@ -68,7 +68,7 @@ public abstract class Item {
         if (animation != null) {
             animationTimer += deltaTime;
             // TODO: Kiểm tra khi animation kết thúc nếu Item có thời gian tồn tại giới hạn
-         }
+        }
 
     }
 
@@ -82,12 +82,12 @@ public abstract class Item {
 
         Image currentImage = null;
         // TODO: Lấy frame hiện tại từ animation nếu có
-         if (animation != null) {
+        if (animation != null) {
             Sprite currentSpriteFrame = animation.getFrame(animationTimer);
             if (currentSpriteFrame != null) {
-               currentImage = currentSpriteFrame.getFxImage();
+                currentImage = currentSpriteFrame.getFxImage();
             }
-         }
+        }
 
         // Nếu không có animation hoặc animation chưa sẵn sàng, dùng sprite mặc định
         if (currentImage == null && sprite != null) {

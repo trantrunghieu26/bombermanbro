@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.List; // IMPORT LỚP LIST
 import java.util.Set;
 import com.example.bomberman.Bomberman;
+import javafx.scene.media.AudioClip;
 
 // Lớp đại diện cho người chơi Bomberman
 public class Player {
@@ -38,7 +39,12 @@ public class Player {
     private int currentBombs; // Số lượng bom HIỆN TẠI Player có thể đặt (giảm khi đặt, tăng khi bom nổ).
     private int flameLength = 1; // Độ dài ngọn lửa khi bom nổ. CÓ THỂ ĐƯỢC TĂNG BỞI ITEM.
     private int lives = 3; // Số mạng của Player (cho vật phẩm LifeItem). CÓ THỂ ĐƯỢC TĂNG BỞI ITEM.
-
+    private boolean isInvincible = false;
+    private double invincibilityTimer = 0;
+    private final double INVINCIBILITY_DURATION = 2.0; // Thời gian bất tử (ví dụ 2 giây)
+    private int initialGridX; // Vị trí lưới X xuất phát của level
+    private int initialGridY; // Vị trí lưới Y xuất phát của level
+    private boolean justRespawnedInvincibility = false; // Cờ để xử lý invincibility sau khi respawn
     // --- Thuộc tính Powerup nâng cao ---
     // TODO: private boolean canPassBrick = false; // Có thể đi xuyên gạch (sau khi đặt bom)
     public boolean canKickBomb = false; // Có thể đá Bom đã đặt (powerupBombpass/kickbomb)
@@ -49,6 +55,11 @@ public class Player {
     // --- Trạng thái cơ bản ---
     private boolean isAlive = true; // Cờ cho biết Player còn sống hay không
     // TODO: private double deathTimer = 0; // Bộ đếm thời gian cho animation chết
+    //--ANIMATION DEAD---
+    private Animation dyingAnimation; // Animation cho việc chết tạm thời
+    private boolean isDyingTemporarily = false; // Cờ cho biết đang trong trạng thái chết tạm thời
+    private double dyingAnimationTimer = 0; // Timer riêng cho animation chết tạm thời
+    private final double deathTimer = 1.0;
 
 
     // --- Tham chiếu đến Map và GameManager ---
@@ -70,7 +81,6 @@ public class Player {
     private Animation currentAnimation; // Animation đang chạy hiện tại
     private double animationTimer = 0; // Bộ đếm thời gian cho animation
     private Direction lastNonNoneDirection = Direction.DOWN; // Hướng cuối cùng không phải NONE (để biết đứng yên hướng nào)
-
 
     // --- Constructor ---
     public Player(int startGridX, int startGridY, Map map, Bomberman gameManager) {
@@ -96,10 +106,11 @@ public class Player {
 
         // --- Khởi tạo các thuộc tính Powerup ban đầu ---
         this.canKickBomb = false;
-        // TODO: canPassBrick = false;
-        // TODO: canPassFlame = false;
-        // TODO: isInvincible = false;
-        // TODO: invincibilityTimer = 0;
+        this.initialGridX = startGridX; // Lưu vị trí xuất phát
+        this.initialGridY = startGridY;
+
+        this.isInvincible = false;
+        this.invincibilityTimer = 0;
 
 
         // --- Khởi tạo các Animation ---
@@ -119,35 +130,79 @@ public class Player {
 
         // Animation ban đầu khi game bắt đầu
         currentAnimation = idleDownAnimation;
+        //ANIMATION DEAD
+        double dyingFrameDuration = deathTimer / 3.0; // Chia đều thời gian cho 3 frame
+        dyingAnimation = new Animation(dyingFrameDuration, false, // loop = false
+                Sprite.player_dead1,
+                Sprite.player_dead2,
+                Sprite.player_dead3);
 
-        // TODO: Khởi tạo animation chết nếu có
     }
 
 
     // --- Phương thức được gọi bởi InputHandler để đặt hướng di chuyển ---
     public void setMovingDirection(Direction direction) {
-        // Chỉ cho phép đổi hướng và di chuyển nếu Player còn sống
-        if (!isAlive) {
+        // --- 1. Kiểm tra trạng thái sống (Chỉ chạy một lần ở đầu) ---
+        if(!isAlive || isDyingTemporarily){
+        if (this.isMoving&&gameManager!=null) gameManager.stopPlayerWalkSound();
+            // Nếu Player không còn sống, đảm bảo dừng âm thanh bước chân nếu nó đang phát
+            // (Sử dụng trạng thái isMoving hiện tại để kiểm tra)
+
             this.currentDirection = Direction.NONE;
             this.isMoving = false;
-            return;
+
+            return; // Thoát ngay nếu Player không sống
+        }
+        boolean wasMoving = this.isMoving; // Lưu trạng thái di chuyển cũ
+
+        // --- Logic cập nhật hướng và trạng thái isMoving như cũ ---
+        if (direction != Direction.NONE) {
+            isMoving = true;
+            if (direction != currentDirection) {
+                currentDirection = direction;
+                lastNonNoneDirection = direction;
+                // ... (cập nhật currentAnimation) ...
+                animationTimer = 0;
+            }
+        } else {
+            if (isMoving) { // Chỉ xử lý nếu trước đó đang di chuyển
+                isMoving = false;
+                currentDirection = Direction.NONE;
+                // ... (cập nhật currentAnimation về idle) ...
+                animationTimer = 0;
+            }
         }
 
-        this.currentDirection = direction;
-        this.isMoving = (direction != Direction.NONE);
 
+        // --- 3. Xử lý âm thanh bước chân dựa trên sự thay đổi trạng thái di chuyển ---
+        // Logic này sử dụng trạng thái cũ (wasMoving) và trạng thái mới (this.isMoving)
+        boolean isMovingNow = this.isMoving; // Lấy trạng thái mới
+
+        if (gameManager != null) { // Luôn kiểm tra gameManager không null
+            // Nếu BẮT ĐẦU di chuyển (trước đó không, bây giờ có)
+            if (isMovingNow && !wasMoving) {
+                gameManager.startPlayerWalkSound(); // Gọi hàm bắt đầu âm thanh lặp
+            }
+            // Nếu DỪNG di chuyển (trước đó có, bây giờ không)
+            else if (!isMovingNow && wasMoving) {
+                gameManager.stopPlayerWalkSound(); // Gọi hàm dừng âm thanh lặp
+            }
+        }
+
+        // --- 4. Cập nhật Animation dựa trên trạng thái di chuyển VÀ hướng mới ---
         if (isMoving) {
-            // Chọn animation di chuyển và cập nhật hướng cuối cùng (để biết đứng yên hướng nào)
-            switch (direction) {
+            // Đang di chuyển, chọn animation di chuyển theo hướng mới
+            switch (this.currentDirection) { // Dùng this.currentDirection đã được cập nhật
                 case UP: currentAnimation = walkUpAnimation; lastNonNoneDirection = Direction.UP; break;
                 case DOWN: currentAnimation = walkDownAnimation; lastNonNoneDirection = Direction.DOWN; break;
                 case LEFT: currentAnimation = walkLeftAnimation; lastNonNoneDirection = Direction.LEFT; break;
                 case RIGHT: currentAnimation = walkRightAnimation; lastNonNoneDirection = Direction.RIGHT; break;
-                case NONE: break; // Trường hợp này isMoving sẽ là false
+                case NONE: break; // Trường hợp này isMoving sẽ là false, không nên vào đây
             }
-            // animationTimer = 0; // Không reset timer khi bắt đầu di chuyển, để animation chạy mượt
+            // animationTimer không cần reset ở đây để animation di chuyển chạy mượt
+
         } else {
-            // Chọn animation đứng yên tương ứng với hướng cuối cùng và reset timer
+            // Không di chuyển, chọn animation đứng yên theo hướng cuối cùng không phải NONE
             switch (lastNonNoneDirection) {
                 case UP: currentAnimation = idleUpAnimation; break;
                 case DOWN: currentAnimation = idleDownAnimation; break;
@@ -155,11 +210,15 @@ public class Player {
                 case RIGHT: currentAnimation = idleRightAnimation; break;
                 default: currentAnimation = idleDownAnimation; break; // Mặc định đứng yên hướng xuống
             }
-            animationTimer = 0; // Reset timer animation khi dừng di chuyển
+            animationTimer = 0; // Reset timer animation khi dừng di chuyển để animation bắt đầu từ frame đầu tiên
         }
+
+        // ANIMATION DEAD LOGIC (Nếu bạn có animation chết riêng cho Player trong Player.java)
+        // if (!isAlive && dyingAnimation != null) {
+        //     currentAnimation = dyingAnimation;
+        //     // animationTimer không cần reset ở đây vì dyingTimer/animationTimer sẽ được quản lý ở Player.update
+        // }
     }
-
-
     // Phương thức được gọi bởi InputHandler khi nhấn phím đặt bom
     public void placeBomb() {
         // Chỉ cho phép đặt bom nếu Player còn sống và không đang trong trạng thái không thể đặt bom
@@ -174,7 +233,7 @@ public class Player {
         // Cần thêm phương thức public boolean isBombAtGrid(int gridX, int gridY) vào Bomberman và sử dụng gameManager
         boolean isBombAtCurrentLocation = false;
         if (gameManager != null) {
-             isBombAtCurrentLocation = gameManager.isBombAtGrid(gridX, gridY);
+            isBombAtCurrentLocation = gameManager.isBombAtGrid(gridX, gridY);
         }
 
 
@@ -183,7 +242,7 @@ public class Player {
             // Xác định vị trí lưới chính xác để đặt bom (làm tròn vị trí pixel của Playe
 
             // TODO: Kiểm tra xem vị trí đặt bom có hợp lệ không (ví dụ: không đặt trong tường cứng)
-             Tile tileAtBombPos = map.getTile(bombGridX, bombGridY);
+            Tile tileAtBombPos = map.getTile(bombGridX, bombGridY);
             if (map != null) { // Kiểm tra map không null
                 tileAtBombPos = map.getTile(bombGridX, bombGridY);
             }
@@ -202,6 +261,7 @@ public class Player {
                 gameManager.addBomb(newBomb); // gameManager phải có phương thức addBomb(Bomb bomb)
                 System.out.println("Player placed a bomb at (" + bombGridX + ", " + bombGridY + "). Current bombs left: " + (currentBombs - 1)); // Log
                 // Giảm số lượng bom mà Player có thể đặt SAU KHI thêm thành công
+                gameManager.playBombPlacedSound();
                 currentBombs--;
                 // TODO: Phát âm thanh đặt bom
             } else {
@@ -215,8 +275,6 @@ public class Player {
             System.out.println("Cannot place bomb: No bombs available (Current: " + currentBombs + "/" + maxBombs + ")");
             // TODO: Phát âm thanh báo lỗi
         }
-
-
     }
 
     // Phương thức được gọi bởi Bomb khi nổ để Player có thể đặt thêm bom
@@ -259,18 +317,18 @@ public class Player {
     // --- Phương thức áp dụng hiệu ứng từ Item SpeedItem ---
     // Được gọi từ SpeedItem.applyEffect()
     public void increaseSpeed() {
-         if(speed<MAX_ALLOWED_SPEED){
-             speed+=50;
-             speed = Math.min(speed, MAX_ALLOWED_SPEED);
-             System.out.println("Collected SpeedItem! New Speed: " + speed); // Log
-         // TODO: Âm thanh power-up
-         }
-         else{
-             System.out.println("Max speed reached (" + MAX_ALLOWED_SPEED + ").");
-             // TODO: Âm thanh báo max / Cộng điểm
-              gameManager.addScore(50);
+        if(speed<MAX_ALLOWED_SPEED){
+            speed+=50;
+            speed = Math.min(speed, MAX_ALLOWED_SPEED);
+            System.out.println("Collected SpeedItem! New Speed: " + speed); // Log
+            // TODO: Âm thanh power-up
+        }
+        else{
+            System.out.println("Max speed reached (" + MAX_ALLOWED_SPEED + ").");
+            // TODO: Âm thanh báo max / Cộng điểm
+            gameManager.addScore(50);
 
-         }
+        }
 
         // TODO: Giới hạn tốc độ tối đa tuyệt đối (ví dụ: speed không quá 250)
     }
@@ -296,11 +354,46 @@ public class Player {
 
     // --- Phương thức cập nhật trạng thái Player mỗi frame ---
     // Được gọi bởi Vòng lặp Game (Bomberman.handle)
-    public void update(double deltaTime) {
-        // TODO: Xử lý trạng thái chết, bất tử tạm thời ở đây
-        // if (!isAlive) { /* Cập nhật animation chết */ /* Cập nhật deathTimer */ /* Kiểm tra hồi sinh */ return; }
-        // if (isInvincible) { /* Cập nhật invincibilityTimer */ /* Tắt bất tử khi hết giờ */ }
 
+    public void update(double deltaTime) {
+
+        if (!isAlive) {
+            if (gameManager != null) gameManager.stopPlayerWalkSound();
+            return;
+        }
+        if (isDyingTemporarily) {
+            if (gameManager != null) gameManager.stopPlayerWalkSound();
+            dyingAnimationTimer += deltaTime; // Cập nhật timer riêng của animation chết
+            animationTimer += deltaTime;      // Cập nhật timer chung cho animation getFrame
+
+            // Kiểm tra xem animation chết đã kết thúc chưa
+            if (dyingAnimation != null && dyingAnimation.isFinished(dyingAnimationTimer)) {
+                // Animation chết đã xong, tiến hành respawn
+                System.out.println("Player temporary dying animation finished. Respawning.");
+                isDyingTemporarily = false; // Tắt cờ chết tạm thời
+                // Gọi hàm respawn (đưa về vị trí cũ và bật bất tử)
+                if (lives <= 0) {
+                    // Hết mạng thực sự sau animation
+                    System.out.println("Player update: Dying animation finished. No lives left. SETTING ISALIVE = FALSE."); // Log quan trọng
+                    isAlive = false; // << Đảm bảo dòng này được thực thi khi hết mạng
+                } else {
+                    // Còn mạng, tiến hành respawn
+                    System.out.println("Player update: Dying animation finished. Respawning.");
+                    respawn();
+                }
+            }
+            // Khi đang chết tạm thời, không làm gì khác (không di chuyển, không nhận sát thương thêm...)
+            return; // Dừng update tại đây
+        }
+        if (isInvincible) {
+            invincibilityTimer -= deltaTime;
+            if (invincibilityTimer <= 0) {
+                isInvincible = false;
+                invincibilityTimer = 0;
+                justRespawnedInvincibility = false;
+                System.out.println("Player invincibility ended.");
+            }
+        }
 
         // LẤY DANH SÁCH BOM (VÀ ENEMY SAU NÀY) TỪ GAMEMANAGER ĐỂ KIỂM TRA VA CHẠM THỰC THỂ
         // Cần phương thức public List<Bomb> getBombs() trong lớp Bomberman (đã thêm ở bước trước)
@@ -427,6 +520,7 @@ public class Player {
         double bottomRightY_tile = checkPixelY + playerSize - buffer;
 
         Set<String> tilesToCheck = new HashSet<>();
+
         tilesToCheck.add(((int) Math.floor(topLeftX_tile / playerSize)) + "," + ((int) Math.floor(topLeftY_tile / playerSize)));
         tilesToCheck.add(((int) Math.floor(topRightX_tile / playerSize)) + "," + ((int) Math.floor(topRightY_tile / playerSize)));
         tilesToCheck.add(((int) Math.floor(bottomLeftX_tile / playerSize)) + "," + ((int) Math.floor(bottomLeftY_tile / playerSize)));
@@ -611,92 +705,127 @@ public class Player {
     public int getMaxBombs() { return maxBombs; } // Getter cho số bom tối đa
     public int getFlameLength() { return flameLength; } // Getter cho độ dài lửa
     public double getSpeed() { return speed; } // Getter cho tốc độ
+    public boolean isInvincible() {
+        return isInvincible;
+    }
+
+    /**
+     * Getter cho trạng thái đang trong animation chết tạm thời của Player.
+     */
+    public boolean isDyingTemporarily() {
+        return isDyingTemporarily;
+    }
     // TODO: public boolean canKickBomb() { return canKickBomb; } // Có thể thay thuộc tính public bằng getter
     // TODO: Getters cho các thuộc tính Powerup nâng cao khác (canPassBrick, canPassFlame, isInvincible)
 
 
     // Phương thức được gọi bởi Vòng lặp Game để vẽ Player
     public void render(GraphicsContext gc) {
-        // TODO: Áp dụng hiệu ứng nhấp nháy/trong suốt nếu đang bất tử tạm thời sau này
-        // if (isInvincible) { gc.setGlobalAlpha(0.5); } // Ví dụ
+        if (!isAlive) {
+            return;
+        }
 
-        // Lấy frame animation hiện tại để vẽ
+        // --- Bước 1: Lấy hình ảnh hiện tại từ animation (như đã sửa trước đó) ---
         Image currentImage = null;
         if (currentAnimation != null) {
             Sprite currentSpriteFrame = currentAnimation.getFrame(animationTimer);
             if (currentSpriteFrame != null) {
                 currentImage = currentSpriteFrame.getFxImage();
             }
+        }
+        if (currentImage == null) { // Fallback
+            currentImage = Sprite.player_down.getFxImage();
+        }
+
+        // --- Bước 2: Xử lý vẽ và hiệu ứng bất tử ---
+        if (isInvincible) {
+            // Tính toán độ alpha dựa trên thời gian còn lại để tạo hiệu ứng mờ dần hoặc nhấp nháy alpha
+            // Ví dụ nhấp nháy alpha:
+            double alphaValue = 0.5 + 0.5 * Math.abs(Math.sin(invincibilityTimer * 5.0)); // Sin wave cho alpha từ 0.5 đến 1.0 (tần số 5.0)
+            // Ví dụ làm mờ đi:
+            // double alphaValue = 0.6; // Luôn hơi mờ khi bất tử
+
+            // Lưu lại alpha gốc
+            double originalAlpha = gc.getGlobalAlpha();
+            // Đặt alpha mới
+            gc.setGlobalAlpha(alphaValue);
+
+            // Vẽ Player với alpha mới
+            if (currentImage != null) {
+                gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+            }
+
+            // Khôi phục alpha gốc !!! QUAN TRỌNG !!!
+            gc.setGlobalAlpha(originalAlpha);
+
         } else {
-            // Fallback nếu không có animation
-            currentImage = Sprite.player_down.getFxImage();
+            // Không bất tử, vẽ Player bình thường (với alpha = 1.0)
+            if (currentImage != null) {
+                gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+            }
         }
-
-        // Fallback cuối cùng
-        if (currentImage == null) {
-            currentImage = Sprite.player_down.getFxImage();
-        }
-
-        // Vẽ hình ảnh Player tại vị trí pixel hiện tại với kích thước đã scale
-        if (currentImage != null) {
-            // TODO: Điều chỉnh vị trí vẽ nếu cần căn giữa sprite hoặc offset so với vị trí pixel
-            // Ví dụ: gc.drawImage(currentImage, pixelX - offsetX, pixelY - offsetY, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
-            gc.drawImage(currentImage, pixelX, pixelY+Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
-        }
-
-        // TODO: Đặt lại global alpha về 1.0 sau khi vẽ nếu đã thay đổi cho hiệu ứng bất tử sau này
-        // if (isInvincible) { gc.setGlobalAlpha(1.0); }
-
-        // TODO: Logic vẽ các yếu tố UI cho Player (số mạng, vv) - Thường vẽ ở lớp UI hoặc Bomberman
     }
     public Bomberman getGameManager() { return gameManager; }
 
-    // TODO: Phương thức nhận sát thương
-    // public void takeDamage(int damage) {
-    //     if (!isAlive) return;
-    //     if (isInvincible) return;
-    //     lives -= damage;
-    //     System.out.println("Player took damage. Remaining lives: " + lives); // Log
-    //     if (lives <= 0) {
-    //         die(); // Gọi phương thức chết
-    //     } else {
-    //         // Kích hoạt bất tử tạm thời sau khi nhận sát thương
-    //         isInvincible = true;
-    //         invincibilityTimer = 0; // Reset timer
-    //         // TODO: Phát âm thanh nhận sát thương
-    //     }
-    // }
+    //TODO: Phương thức nhận sát thương
+    public void takeDamage(int damage) {
+        if (!isAlive) return;
+        if (isDyingTemporarily) { // Không nhận sát thương khi đang trong animation chết
+            return;
+        }
+        if (isInvincible) return;
+        lives -= damage;
+        System.out.println("Player took damage. Remaining lives: " + lives); // Log
+        if (gameManager != null) {
+            gameManager.playPlayerDeadSound(); // << THÊM DÒNG NÀY
+        }
+        if (isAlive) { // Chỉ bắt đầu dying nếu isAlive còn true
+            System.out.println("takeDamage: Starting temporary dying process.");
+            startTemporaryDying();
+        }
+    }
 
     // TODO: Phương thức chết
-    // private void die() {
-    //     isAlive = false;
-    //     isMoving = false; // Dừng di chuyển
-    //     currentDirection = Direction.NONE; // Reset hướng
-    //     deathTimer = 0; // Bắt đầu timer chết
-    //     // TODO: Chuyển sang animation chết
-    //     // TODO: Thông báo cho gameManager Player đã chết
-    //     System.out.println("Player died."); // Log
-    //     // TODO: Phát âm thanh chết
-    // }
+    private void die() {
+        if(!isAlive) return;
+        isAlive = false;
+        isMoving = false; // Dừng di chuyển
+        currentDirection = Direction.NONE; // Reset hướng
+        System.out.println("Player died."); // Log
+        // TODO: Phát âm thanh chết
+    }
 
-    // TODO: Phương thức hồi sinh (được gọi bởi gameManager sau khi chết và còn mạng)
-    // public void respawn(int startGridX, int startGridY) {
-    //     isAlive = true;
-    //     // Reset vị trí
-    //     this.gridX = startGridX;
-    // this.gridY = startGridY;
-    //     this.pixelX = startGridX * Sprite.SCALED_SIZE;
-    //     this.pixelY = startGridY * Sprite.SCALED_SIZE;
-    //     // Reset trạng thái
-    //     isMoving = false;
-    //     currentDirection = Direction.DOWN;
-    //     // TODO: Reset animation về trạng thái sống
-    //     currentAnimation = idleDownAnimation;
-    //     // TODO: Kích hoạt bất tử tạm thời sau khi hồi sinh
-    //     isInvincible = true;
-    //     invincibilityTimer = 0;
-    //     System.out.println("Player respawned."); // Log
-    // }
+    public void respawn() {
+        this.gridX = this.initialGridX;
+        this.gridY = this.initialGridY;
+        this.pixelX = this.initialGridX * Sprite.SCALED_SIZE;
+        this.pixelY = this.initialGridY * Sprite.SCALED_SIZE;
 
+        // Reset trạng thái di chuyển và animation
+        this.isMoving = false;
+        this.currentDirection = Direction.DOWN;
+        this.lastNonNoneDirection = Direction.DOWN; // Thêm dòng này để nhất quán
+        if (this.idleDownAnimation != null) { // Kiểm tra null
+            this.currentAnimation = this.idleDownAnimation;
+        }
+        if (gameManager != null) gameManager.stopPlayerWalkSound();
+        this.animationTimer = 0; // Reset timer animation
 
+        // Kích hoạt bất tử tạm thời sau khi hồi sinh
+        this.isInvincible = true;
+        this.invincibilityTimer = INVINCIBILITY_DURATION; // <<< ĐÃ SỬA LỖI TIMER
+        this.justRespawnedInvincibility = true;
+    }
+
+    private void startTemporaryDying() {
+        if (isDyingTemporarily) return; // Tránh gọi nhiều lần nếu có lỗi logic
+
+        isDyingTemporarily = true;   // Bật cờ
+        dyingAnimationTimer = 0;     // Reset timer cho animation chết
+        animationTimer = 0;          // Reset timer animation chung
+        currentAnimation = dyingAnimation; // Chuyển sang animation chết
+        isMoving = false;            // Ngừng di chuyển
+        currentDirection = Direction.NONE;
+        if (gameManager != null) gameManager.stopPlayerWalkSound();
+    }
 }
