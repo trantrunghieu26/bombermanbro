@@ -49,3 +49,56 @@ Xem comment ở starter project
 - Có thể thay đổi được tệp cấu hình khác cho màn chơi (tương tự mẫu cho trước)
 
 ## Nhiệm vụ của bạn
+
+### 1. Thiết kế (3 điểm):
+*   **Sơ đồ lớp (Class Diagram):** Vẽ sơ đồ lớp UML thể hiện mối quan hệ giữa các lớp (sử dụng công cụ như draw.io, PlantUML, Lucidchart...). Sơ đồ phải thể hiện rõ:
+    *   Các lớp đối tượng (Bomber, Enemy, Balloom, Oneal, Bomb, Flame, Grass, Wall, Brick, Portal, Item, SpeedItem, FlameItem, BombItem...).
+    *   Thuộc tính (attributes) và phương thức (methods) của mỗi lớp.
+    *   Quan hệ kế thừa (inheritance), kết hợp (association), phụ thuộc (dependency) giữa các lớp.
+*   **Thiết kế giao diện (nếu có):** Mô tả hoặc phác thảo giao diện người dùng (nếu chọn làm phần đồ họa).
+*   **Giải thích:** Giải thích ngắn gọn về thiết kế, lý do lựa chọn các lớp, quan hệ, và các design pattern (nếu có sử dụng, ví dụ: Factory, Strategy...).
+
+### 2. Cài đặt (5 điểm):
+*   **Cấu trúc chương trình:**
+    *   Tổ chức code thành các package hợp lý (ví dụ: entities, graphics, input, level, game).
+    *   Sử dụng các hằng số (constants) để lưu trữ các giá trị cố định (ví dụ: kích thước ô, thời gian nổ bom...).
+*   **Đọc màn chơi:**
+    *   Đọc dữ liệu màn chơi từ file text (ví dụ: Level1.txt).
+    *   Tạo các đối tượng tương ứng trong game dựa trên dữ liệu đọc được.
+*   **Điều khiển:**
+    *   Cho phép người chơi điều khiển Bomber di chuyển bằng các phím mũi tên hoặc WASD.
+    *   Cho phép Bomber đặt bom bằng phím Space.
+*   **Xử lý logic:**
+    *   Enemy di chuyển tự động (Balloom di chuyển ngẫu nhiên, Oneal có thể đuổi theo Bomber).
+    *   Xử lý va chạm (collision detection):
+        *   Bomber không thể đi xuyên Wall, Brick.
+        *   Enemy không thể đi xuyên Wall, Brick (trước khi Brick bị phá).
+        *   Bomber và Enemy chết khi va chạm với Flame.
+        *   Bomber nhặt Item khi đi vào vị trí Item.
+        *   Bomber đi vào Portal khi tất cả Enemy đã bị tiêu diệt.
+    *   Xử lý bom nổ:
+        *   Bom nổ sau một khoảng thời gian nhất định.
+        *   Tạo ra các Flame theo 4 hướng.
+        *   Flame bị chặn bởi Wall, Brick. Nếu là Brick thì Brick sẽ bị phá hủy.
+        *   Nếu Flame chạm vào Bomb khác, Bomb đó cũng sẽ nổ ngay lập tức.
+    *   Cập nhật trạng thái các đối tượng sau mỗi frame (vòng lặp game).
+*   **Hiển thị:**
+    *   Vẽ các đối tượng lên màn hình (sử dụng thư viện đồ họa của starter code, hoặc tự xây dựng).
+    *   Cập nhật màn hình sau mỗi frame.
+    *   Có thể hiển thị thông tin về màn chơi, điểm số, số lượng mạng còn lại (tùy chọn).
+### 3. Mở rộng (2 điểm):
+Chọn ít nhất một trong các tính năng sau để mở rộng game:
+*   **Thêm loại Enemy:** Tạo thêm ít nhất một loại Enemy mới với hành vi khác biệt (ví dụ: di chuyển nhanh hơn, có khả năng đặc biệt...).
+*   **Thêm Item:** Tạo thêm ít nhất một loại Item mới với chức năng khác biệt (ví dụ: tàng hình, xuyên tường...).
+*   **Nhiều màn chơi:** Cho phép chuyển đổi giữa các màn chơi khác nhau (đọc từ các file khác nhau).
+*   **Âm thanh:** Thêm âm thanh cho các sự kiện (ví dụ: đặt bom, bom nổ, Enemy chết, nhặt Item...).
+*   **Điểm số:** Tính điểm khi tiêu diệt Enemy, hiển thị điểm số.
+*   **Lưu/Tải game:** Cho phép lưu trạng thái game và tải lại sau này (sử dụng file).
+*   **AI cho Bomber (cho phép máy tự động chơi)**
+*   **Chế độ nhiều người chơi:** Phát triển hệ thống server-client để nhiều người chơi cùng lúc qua mạng LAN hoặc Internet.
+*   **Giao diện đồ hoạ (GUI):** Thay vì giao diện text, hãy tạo một giao diện đồ hoạ thân thiện với các button, menu. Có thể dùng JavaFX hoặc thư viện khác.
+*   **Tối ưu hoá hiệu suất:** Tìm các điểm có thể tối ưu, ví dụ:
+    *   Dùng thuật toán tìm đường tốt hơn cho Oneal (A\*, BFS, DFS...)
+    *   Tối ưu việc render các đối tượng.
+
+
