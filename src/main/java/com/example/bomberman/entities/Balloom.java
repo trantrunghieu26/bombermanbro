@@ -24,7 +24,7 @@ public class Balloom extends Enemy {
         super(startGridX, startGridY, BALLOOM_SPEED, BALLOOM_SCORE, map, gameManager);
 
         // --- Khởi tạo Animations cho Balloom ---
-        double frameDuration = 0.25; // Thời gian mỗi frame animation (có thể điều chỉnh)
+        double frameDuration = 0.3; // Thời gian mỗi frame animation (có thể điều chỉnh)
         // Balloom chỉ có animation trái/phải
         walkLeftAnimation = new Animation(frameDuration, true, Sprite.balloom_left1, Sprite.balloom_left2, Sprite.balloom_left3);
         walkRightAnimation = new Animation(frameDuration, true, Sprite.balloom_right1, Sprite.balloom_right2, Sprite.balloom_right3);
