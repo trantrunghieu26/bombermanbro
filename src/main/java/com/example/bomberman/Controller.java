@@ -9,6 +9,7 @@ import com.example.bomberman.entities.*;
 import com.example.bomberman.entities.Items.*;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
+import com.example.bomberman.graphics.SpriteSheet;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -26,14 +27,19 @@ public class Controller {
     //               //    attributes        //        //
 
     private Random random = new Random();
-    public View view = new View();
+    public View view;
     private int score = 0;
     public static final int UI_PANEL_HEIGHT = 32;
     private java.util.Map<String, Character> hiddenItemsData;
     private final int MAX_LEVEL = 10;
     public String[] menuOptions = {"Start Game", "Settings", "Music: ON"};
+    public String[] Animations = {"Animation 0", "Animation 1", "Animation 2"};
+
     public boolean isMusicOn = true;
+    public boolean[] isAnimations = {true, false, false};
+
     public int selectedOptionIndex = 0;
+    public int selectSetting = 0;
 
     // Tính kích thước canvas dựa vào map size
     public int canvasWidth;
@@ -65,13 +71,18 @@ public class Controller {
 
     //             //         Method             //     //
 
-    public Controller() {}
+    public Controller() {
+        SpriteSheet.tiles = new SpriteSheet("res/textures/classic1.png", 256);
+    }
 
     public void controllerActive(Bomberman myGame) {
         try {
             System.out.println("Loading level " + myGame.currentLevel + "..."); // Log bắt đầu tải level
 
+            Sprite.updateAllSpritesFromSheet(SpriteSheet.tiles);
+
             this.view = new View();
+            myGame.view = this.view;
 
             this.score = 0;
             this.levelTimeRemaining = LEVEL_DURATION_SECONDS;
@@ -168,7 +179,7 @@ public class Controller {
                         case '6': enemies.add(new Kondoria(j, i, gameMap)); break;
                         case '+':
                             if (player != null) {
-                                availableBomb.add(new Bomb(j, i, 1, player));
+                                availableBomb.add(new Bomb(j, i, player.getFlameLength(), player));
                             }
                             break;
                         case 'x':
@@ -209,6 +220,7 @@ public class Controller {
             myGame.getPrimaryStage().show();
 
             System.out.println("load full for game!");
+
 
         } catch (Exception e) {
             // Bắt bất kỳ ngoại lệ nào xảy ra trong quá trình tải level
@@ -264,8 +276,7 @@ public class Controller {
             // Kiểm tra va chạm giữa Flame và Bounding Box của Player (đã có logic này)
             // Chỉ kiểm tra nếu Player chưa chết VÀ chưa bất tử
             if (player != null && player.isAlive() && !player.isInvincible()) {
-                if (checkCollision(player.getPixelX(), player.getPixelY(), flame.getPixelX(), flame.getPixelY()) &&
-                    !checkCollision(player.getLastPixelX(deltaTime), player.getLastPixelY(deltaTime), flame.getLastPixelX(deltaTime), flame.getLastPixelY(deltaTime))) {
+                if (checkCollision(player.getPixelX(), player.getPixelY(), flame.getPixelX(), flame.getPixelY()) && flame.getAnimationTime() <= deltaTime) {
                     System.out.println("Player hit by flame at (" + flameGridX + ", " + flameGridY + ")");
                     if (this.player.getLives() > 0) {
                         this.player.decreaseLive();
@@ -391,7 +402,6 @@ public class Controller {
         handlePlayerItemCollisions();
         this.checkCollisions(deltaTime);
         handlePortalTransition(myGame);
-
     }
 
     public void handlePortalTransition(Bomberman myGame){
@@ -430,10 +440,14 @@ public class Controller {
                     myGame.view = this.view;
                 } else {
                     System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
-                    if (myGame.getPrimaryStage() != null) myGame.getPrimaryStage().close();
+                    if (myGame.getPrimaryStage() != null) {
+                        myGame.currentState = GameState.GAME_WON;
+                    }
                 }
                 return;
             }
+        } else if (this.player.isRemoved() || this.player == null) {
+            myGame.currentState = GameState.GAME_OVER;
         }
     }
 
@@ -586,6 +600,50 @@ public class Controller {
     }
 
 
+    public void restartGame(Bomberman myGame) {
+        System.out.println("Restarting game...");
+        myGame.currentLevel = 1;
+        this.controllerActive(myGame);
+        myGame.currentState = GameState.PLAYING;
+    }
+
+
+    public void chooseSetting(Bomberman myGame) {
+        myGame.currentState = GameState.SETTING;
+    }
+
+    public void chooseAnimation0(Bomberman myGame) {
+        isAnimations[0] = true;
+        for (int i = 0; i < isAnimations.length; ++i) {
+            if (i == 0) continue;
+            isAnimations[i] = false;
+        }
+        SpriteSheet.tiles = new SpriteSheet("res/textures/classic1.png", 256);
+        System.out.println("Set path successfully!");
+        this.controllerActive(myGame);
+    }
+
+    public void chooseAnimation1(Bomberman myGame) {
+        isAnimations[1] = true;
+        for (int i = 0; i < isAnimations.length; ++i) {
+            if (i == 1) continue;
+            isAnimations[i] = false;
+        }
+        SpriteSheet.tiles = new SpriteSheet("res/textures/TEXTURE.png", 256);
+        System.out.println("Set path successfully!");
+        this.controllerActive(myGame);
+    }
+
+    public void chooseAnimation2(Bomberman myGame) {
+        isAnimations[2] = true;
+        for (int i = 0; i < isAnimations.length; ++i) {
+            if (i == 2) continue;
+            isAnimations[i] = false;
+        }
+        SpriteSheet.tiles = new SpriteSheet("res/textures/Screenshot 2025-05-08 124217.png", 256);
+        System.out.println("Set path successfully!");
+        this.controllerActive(myGame);
+    }
 
     public boolean isPortalActivated() {
         return portalActivated;
@@ -616,4 +674,5 @@ public class Controller {
     public List<Item> getItems() { return this.items; }
 
     public int getScore() { return this.score; }
+    
 }

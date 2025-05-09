@@ -30,7 +30,6 @@ public class InputHandler {
         // Bắt sự kiện nhấn phím
         gameScene.setOnKeyPressed(event -> {
 
-            if (this.player.isAlive()) {
                 KeyCode code = event.getCode();
                 GameState currentGameState = gameManager.getCurrentState();
 
@@ -38,43 +37,85 @@ public class InputHandler {
 
                 switch (currentGameState) {
                     case PLAYING:
-                        // Xử lý các phím di chuyển
-                        if (isMovementKey(code)) {
-                            if (!movingKeysPressed.contains(code)) { // Chỉ xử lý lần nhấn đầu tiên
-                                movingKeysPressed.add(code);
-                                updatePlayerMovement(); // Cập nhật hướng di chuyển của Player
+                        if (this.player.isAlive()) {
+                            // Xử lý các phím di chuyển
+                            if (isMovementKey(code)) {
+                                if (!movingKeysPressed.contains(code)) { // Chỉ xử lý lần nhấn đầu tiên
+                                    movingKeysPressed.add(code);
+                                    updatePlayerMovement(); // Cập nhật hướng di chuyển của Player
+                                }
                             }
-                        }
-                        // Xử lý phím đặt bom (chỉ cần xử lý khi nhấn xuống)
-                        if (code == KeyCode.SPACE) {
-                            this.player.requestPlayerPlaceBomb();
-                        }
+                            // Xử lý phím đặt bom (chỉ cần xử lý khi nhấn xuống)
+                            if (code == KeyCode.SPACE) {
+                                this.player.requestPlayerPlaceBomb();
+                            }
 
-                        // Xử lý phím tạm dừng (chỉ cần xử lý khi nhấn xuống)
-                        if (code == KeyCode.ESCAPE) {
-                            if (gameManager != null) { // Kiểm tra null
-                                gameManager.togglePause(); // Gọi phương thức mới trong Bomberman
+                            // Xử lý phím tạm dừng (chỉ cần xử lý khi nhấn xuống)
+                            if (code == KeyCode.ESCAPE) {
+                                if (gameManager != null) { // Kiểm tra null
+                                    gameManager.togglePause(); // Gọi phương thức mới trong Bomberman
+                                }
                             }
+
+                            if (code == KeyCode.BACK_SPACE) {
+                                this.player.getController().restartGame(gameManager);
+                            }
+
+                            if (code == KeyCode.ENTER) {
+                                gameManager.currentState = GameState.MENU;
+                            }
+                            break;
                         }
-                        break;
                     case PAUSED:
                         if (code == KeyCode.ESCAPE) {
                             gameManager.togglePause();
                         }
+
+                        if (code == KeyCode.BACK_SPACE) {
+                            this.player.getController().restartGame(gameManager);
+                        }
+
+                        if (code == KeyCode.ENTER) {
+                            gameManager.currentState = GameState.MENU;
+                        }
                         break;
                     case MENU:
+                    case SETTING:
                         if (code == KeyCode.UP || code == KeyCode.W) {
                             gameManager.navigateMenuUp(); // Gọi hàm của Bomberman
                         } else if (code == KeyCode.DOWN || code == KeyCode.S) {
                             gameManager.navigateMenuDown(); // Gọi hàm của Bomberman
                         } else if (code == KeyCode.ENTER) {
-                            gameManager.selectMenuOption(); // Gọi hàm của Bomberman
+                            gameManager.selectForOption(); // Gọi hàm của Bomberman
                         } else if (code == KeyCode.ESCAPE) {
                             if (gameManager.getPrimaryStage() != null) gameManager.getPrimaryStage().close();
+                        } else if (code == KeyCode.BACK_SPACE) {
+                            gameManager.currentState = GameState.MENU;
+                            System.out.println("this is my player!");
+                            System.out.println(player.getCurrentAnimation().get0thSprite().getSheet().get_path());
+                        }
+                        break;
+
+                    case GAME_OVER:
+                        if (code == KeyCode.ENTER) {
+                            this.player.getController().restartGame(gameManager);
+                        } else if (code == KeyCode.ESCAPE) {
+                            gameManager.getPrimaryStage().close();
+                        } else if (code == KeyCode.BACK_SPACE) {
+                            gameManager.currentState = GameState.MENU;
+                        }
+
+
+                    case GAME_WON:
+                        if (code == KeyCode.ENTER) {
+                            this.player.getController().restartGame(gameManager);
+                        } else if (code == KeyCode.ESCAPE) {
+                            gameManager.getPrimaryStage().close();
+                        } else if (code == KeyCode.BACK_SPACE) {
+                            gameManager.currentState = GameState.MENU;
                         }
                         break;
                 }
-            }
         });
 
         // Bắt sự kiện nhả phím

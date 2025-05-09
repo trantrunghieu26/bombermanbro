@@ -11,7 +11,7 @@ import java.net.URL;
  */
 public class SpriteSheet {
 
-    private final String _path;
+    private String _path;
     public final int SIZE;
     public int[] pixels;
     public BufferedImage image;
@@ -20,8 +20,6 @@ public class SpriteSheet {
     public static SpriteSheet tiles0 = new SpriteSheet("res/textures/classic1.png", 256);
     public static SpriteSheet tiles1 = new SpriteSheet("res/textures/TEXTURE.png", 256);
     public static SpriteSheet tiles2 = new SpriteSheet("res/textures/Screenshot 2025-05-08 124217.png", 256);
-
-    static { tiles = tiles1; }
 
     public SpriteSheet(String path, int size) {
         _path = path;
@@ -40,5 +38,11 @@ public class SpriteSheet {
             e.printStackTrace();
             System.exit(0);
         }
+    }
+
+    public String get_path() { return this._path; }
+
+    public void set_path(String path) {
+        this._path = path;
     }
 }

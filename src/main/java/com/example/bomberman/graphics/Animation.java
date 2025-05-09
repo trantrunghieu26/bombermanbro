@@ -67,4 +67,6 @@ public class Animation {
     public int getFrameCount() {
         return frames.length;
     }
+
+    public Sprite get0thSprite() { return this.frames[0]; }
 }

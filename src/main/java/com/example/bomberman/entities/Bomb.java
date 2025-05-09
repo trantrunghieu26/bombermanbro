@@ -16,7 +16,7 @@ import java.util.List;
 // Lớp đại diện cho quả bom
 public class Bomb extends Entity {
 
-    private double timer = 2.5; // Thời gian bom nổ (giây). Điều chỉnh giá trị này.
+    private double timer = 0.5; // Thời gian bom nổ (giây). Điều chỉnh giá trị này.
     private int flameLength; // Chiều dài ngọn lửa khi nổ
     private Animation bombAnimation;
     private Animation bombAniAni;
@@ -30,7 +30,7 @@ public class Bomb extends Entity {
     //--- đá bom---
     private boolean isKicked = false;
     private Direction kickDirection = Direction.NONE;
-    private double kickSpeed = 100;// bo cung duoc
+    private double kickSpeed = 120;// bo cung duoc
     public static final double KICK_SPEED_CONSTANT = 200.0; // << GIÁ TRỊ TỐC ĐỘ ĐÁ NẰM Ở ĐÂY
 
 
@@ -352,5 +352,7 @@ public class Bomb extends Entity {
         }
     }
 
-    // TODO: Các phương thức khác nếu cần
+    public void setTimer(double timer) { this.timer = timer; }
+    
+    public void setFlameLength(int length) { this.flameLength += length; }
 }

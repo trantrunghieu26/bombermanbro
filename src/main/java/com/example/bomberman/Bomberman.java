@@ -19,6 +19,7 @@ public class Bomberman extends Application {
     private Stage primaryStage;
     public static Font uiFont;
     private Image menuBackground;
+    private Image wingame;
     private Image handCursorImage; // Thêm biến này nếu load con trỏ riêng
     public static final int UI_PANEL_HEIGHT = 32;
 
@@ -76,6 +77,20 @@ public class Bomberman extends Application {
         }
 
         try {
+            InputStream wgStream = getClass().getResourceAsStream("/textures/wingame.png");
+            if (wgStream != null) {
+                wingame = new Image(wgStream);
+                wgStream.close();
+                System.out.println("What is the next?");
+            } else {
+                System.err.println("Well, everything don't follow you!");
+            }
+        } catch (Exception e) {
+            System.err.println("Error: I don't Know what happened!" + e.getMessage());
+            e.printStackTrace();
+        }
+
+        try {
             InputStream hcStream = getClass().getResourceAsStream("/textures/contro2.png"); // Đặt tên file đúng
             if (hcStream != null) {
                 handCursorImage = new Image(hcStream); // Load ảnh gốc
@@ -121,13 +136,11 @@ public class Bomberman extends Application {
                         break;
 
                     case PAUSED:
-
                         view.renderForAllPLAYING(con);
                         view.renderPauseScreen(con, uiFont); // << GỌI HÀM VẼ PAUSE MỚI
                         break;
 
                     case MENU:
-                        // TODO: Xử lý update và render cho Menu sau
                         view.renderMenu(con, menuBackground, uiFont, handCursorImage);
                         break;
 
@@ -135,7 +148,14 @@ public class Bomberman extends Application {
                         view.renderGameOverScreen(con, uiFont);
                         break;
 
-                    // Thêm các case khác nếu cần (LEVEL_CLEARED, GAME_WON)
+                    case GAME_WON:
+                        view.renderWinState(con, wingame, uiFont);
+                        break;
+
+                    case SETTING:
+                        view.renderSetting(con, uiFont);
+                        break;
+
                     default:
                         // Trạng thái không xác định, có thể vẽ màn hình game mặc định
                         view.renderForAllPLAYING(con);
@@ -178,6 +198,12 @@ public class Bomberman extends Application {
                 con.selectedOptionIndex = con.menuOptions.length - 1;
             }
             // TODO: Play menu navigation sound
+        } else if (currentState == GameState.SETTING) {
+            con.selectSetting--;
+            if (con.selectSetting < 0) {
+                con.selectSetting = con.Animations.length - 1;
+            }
+            // TODO: Play Setting navigation sound
         }
     }
 
@@ -188,22 +214,40 @@ public class Bomberman extends Application {
                 con.selectedOptionIndex = 0;
             }
             // TODO: Play menu navigation sound
+        } else if (currentState == GameState.SETTING) {
+            con.selectSetting++;
+            if (con.selectSetting >= con.Animations.length) {
+                con.selectSetting = 0;
+            }
+            // TODO: Play Setting navigation sound
         }
     }
 
-    public void selectMenuOption() {
+    public void selectForOption() {
         if (currentState == GameState.MENU) {
             // TODO: Play menu selection sound
             switch (con.selectedOptionIndex) {
                 case 0: // Start Game
-                    con.startGame(myGame); // Hàm startGame đã có sẵn
+                    con.startGame(myGame);
                     break;
                 case 1: // Settings
-                    System.out.println("Settings selected (Not implemented)");
-                    // currentState = GameState.SETTINGS; // Nếu có state Settings
+                    con.chooseSetting(myGame);
                     break;
                 case 2: // Music
-                    con.toggleMusic(); // Gọi hàm toggleMusic
+                    con.toggleMusic();
+                    break;
+            }
+        } else if (currentState == GameState.SETTING) {
+            // TODO: Play menu selection sound
+            switch (con.selectSetting) {
+                case 0:
+                    con.chooseAnimation0(myGame);
+                    break;
+                case 1:
+                    con.chooseAnimation1(myGame);
+                    break;
+                case 2:
+                    con.chooseAnimation2(myGame);
                     break;
             }
         }

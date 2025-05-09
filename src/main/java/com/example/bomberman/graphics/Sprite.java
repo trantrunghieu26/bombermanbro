@@ -331,6 +331,169 @@ public class Sprite {
     }
 
 
+
+    // ====================================================================
+    // === PHƯƠNG THỨC CẬP NHẬT SPRITES TĨNH TỪ SPRITESHEET MỚI ========
+    // ====================================================================
+    public static void updateAllSpritesFromSheet(SpriteSheet tiles) {
+        if (tiles == null) {
+            System.err.println("Error: Cannot update sprites from null SpriteSheet.");
+            return;
+        }
+        System.out.println("Updating all static sprites from new SpriteSheet...");
+
+        // --- BOARD SPRITES ---
+        grass = new Sprite(DEFAULT_SIZE, 6, 0, tiles, 16, 16);
+        brick = new Sprite(DEFAULT_SIZE, 7, 0, tiles, 16, 16);
+        wall = new Sprite(DEFAULT_SIZE, 5, 0, tiles, 16, 16);
+        // Chú ý: portal và realportal dùng realWidth/realHeight khác
+        portal = new Sprite(DEFAULT_SIZE, 4, 0, tiles, 14, 14);
+        realportal = new Sprite(DEFAULT_SIZE, 4, 0, tiles, 14, 14);
+        sign1 = new Sprite(DEFAULT_SIZE, 6, 0, tiles, 16, 16); // Kiểm tra tham số goc neu co
+        sign2= new Sprite(DEFAULT_SIZE, 6, 1, tiles, 16, 16); // Kiểm tra tham so goc neu co
+        // nul = null; // Giu nguyen nul
+
+        // --- BOMBER SPRITES ---
+        player_up = new Sprite(DEFAULT_SIZE, 0, 0, tiles, 12, 16);
+        player_down = new Sprite(DEFAULT_SIZE, 2, 0, tiles, 12, 15);
+        player_left = new Sprite(DEFAULT_SIZE, 3, 0, tiles, 10, 15);
+        player_right = new Sprite(DEFAULT_SIZE, 1, 0, tiles, 10, 16);
+
+        player_up_1 = new Sprite(DEFAULT_SIZE, 0, 1, tiles, 12, 16);
+        player_up_2 = new Sprite(DEFAULT_SIZE, 0, 2, tiles, 12, 15);
+
+        player_down_1 = new Sprite(DEFAULT_SIZE, 2, 1, tiles, 12, 15);
+        player_down_2 = new Sprite(DEFAULT_SIZE, 2, 2, tiles, 12, 16);
+
+        player_left_1 = new Sprite(DEFAULT_SIZE, 3, 1, tiles, 11, 16);
+        player_left_2 = new Sprite(DEFAULT_SIZE, 3, 2, tiles, 12 ,16);
+
+        player_right_1 = new Sprite(DEFAULT_SIZE, 1, 1, tiles, 11, 16);
+        player_right_2 = new Sprite(DEFAULT_SIZE, 1, 2, tiles, 12, 16);
+
+        player_dead1 = new Sprite(DEFAULT_SIZE, 4, 2, tiles, 14, 16);
+        player_dead2 = new Sprite(DEFAULT_SIZE, 5, 2, tiles, 13, 15);
+        player_dead3 = new Sprite(DEFAULT_SIZE, 6, 2, tiles, 16, 16);
+
+        // --- CHARACTER SPRITES ---
+        //BALLOM
+        balloom_left1 = new Sprite(DEFAULT_SIZE, 9, 0, tiles, 16, 16);
+        balloom_left2 = new Sprite(DEFAULT_SIZE, 9, 1, tiles, 16, 16);
+        balloom_left3 = new Sprite(DEFAULT_SIZE, 9, 2, tiles, 16, 16);
+        balloom_right1 = new Sprite(DEFAULT_SIZE, 10, 0, tiles, 16, 16);
+        balloom_right2 = new Sprite(DEFAULT_SIZE, 10, 1, tiles, 16, 16);
+        balloom_right3 = new Sprite(DEFAULT_SIZE, 10, 2, tiles, 16, 16);
+        balloom_dead = new Sprite(DEFAULT_SIZE, 9, 3, tiles, 16, 16);
+
+        //ONEAL
+        oneal_left1 = new Sprite(DEFAULT_SIZE, 11, 0, tiles, 16, 16);
+        oneal_left2 = new Sprite(DEFAULT_SIZE, 11, 1, tiles, 16, 16);
+        oneal_left3 = new Sprite(DEFAULT_SIZE, 11, 2, tiles, 16, 16);
+        oneal_right1 = new Sprite(DEFAULT_SIZE, 12, 0, tiles, 16, 16);
+        oneal_right2 = new Sprite(DEFAULT_SIZE, 12, 1, tiles, 16, 16);
+        oneal_right3 = new Sprite(DEFAULT_SIZE, 12, 2, tiles, 16, 16);
+        oneal_dead = new Sprite(DEFAULT_SIZE, 11, 3, tiles, 16, 16);
+
+        //Doll
+        doll_left1 = new Sprite(DEFAULT_SIZE, 13, 0, tiles, 16, 16);
+        doll_left2 = new Sprite(DEFAULT_SIZE, 13, 1, tiles, 16, 16);
+        doll_left3 = new Sprite(DEFAULT_SIZE, 13, 2, tiles, 16, 16);
+        doll_right1 = new Sprite(DEFAULT_SIZE, 14, 0, tiles, 16, 16);
+        doll_right2 = new Sprite(DEFAULT_SIZE, 14, 1, tiles, 16, 16);
+        doll_right3 = new Sprite(DEFAULT_SIZE, 14, 2, tiles, 16, 16);
+        doll_dead = new Sprite(DEFAULT_SIZE, 13, 3, tiles, 16, 16);
+
+        // Ghost
+        ghost_left1 = new Sprite(DEFAULT_SIZE, 6, 5, tiles, 16, 16);
+        ghost_left2 = new Sprite(DEFAULT_SIZE, 6, 6, tiles, 16, 16);
+        ghost_left3 = new Sprite(DEFAULT_SIZE, 6, 7, tiles, 16, 16);
+        ghost_right1 = new Sprite(DEFAULT_SIZE, 7, 5, tiles, 16, 16);
+        ghost_right2 = new Sprite(DEFAULT_SIZE, 7, 6, tiles, 16, 16);
+        ghost_right3 = new Sprite(DEFAULT_SIZE, 7, 7, tiles, 16, 16);
+        ghost_dead = new Sprite(DEFAULT_SIZE, 6, 8, tiles, 16, 16);
+
+        coin = new Sprite(DEFAULT_SIZE, 13, 3, tiles, 16, 16); // Kiểm tra tham số gốc
+
+        //Minvo
+        minvo_left1 = new Sprite(DEFAULT_SIZE, 8, 5, tiles, 16, 16);
+        minvo_left2 = new Sprite(DEFAULT_SIZE, 8, 6, tiles, 16, 16);
+        minvo_left3 = new Sprite(DEFAULT_SIZE, 8, 7, tiles, 16, 16);
+        minvo_right1 = new Sprite(DEFAULT_SIZE, 9, 5, tiles, 16, 16);
+        minvo_right2 = new Sprite(DEFAULT_SIZE, 9, 6, tiles, 16, 16);
+        minvo_right3 = new Sprite(DEFAULT_SIZE, 9, 7, tiles, 16, 16);
+        minvo_dead = new Sprite(DEFAULT_SIZE, 8, 8, tiles, 16, 16);
+
+        //Kondoria
+        kondoria_left1 = new Sprite(DEFAULT_SIZE, 10, 5, tiles, 16, 16);
+        kondoria_left2 = new Sprite(DEFAULT_SIZE, 10, 6, tiles, 16, 16);
+        kondoria_left3 = new Sprite(DEFAULT_SIZE, 10, 7, tiles, 16, 16);
+        kondoria_right1 = new Sprite(DEFAULT_SIZE, 11, 5, tiles, 16, 16);
+        kondoria_right2 = new Sprite(DEFAULT_SIZE, 11, 6, tiles, 16, 16);
+        kondoria_right3 = new Sprite(DEFAULT_SIZE, 11, 7, tiles, 16, 16);
+        kondoria_dead = new Sprite(DEFAULT_SIZE, 10, 8, tiles, 16, 16);
+
+        //ALL mob dead animation
+        mob_dead1 = new Sprite(DEFAULT_SIZE, 15, 0, tiles, 16, 16);
+        mob_dead2 = new Sprite(DEFAULT_SIZE, 15, 1, tiles, 16, 16);
+        mob_dead3 = new Sprite(DEFAULT_SIZE, 15, 2, tiles, 16, 16);
+
+        // --- BOMB SPRITES ---
+        bomb = new Sprite(DEFAULT_SIZE, 0, 3, tiles, 15, 15);
+        bomb_1 = new Sprite(DEFAULT_SIZE, 1, 3, tiles, 13, 15);
+        bomb_2 = new Sprite(DEFAULT_SIZE, 2, 3, tiles, 12, 14);
+
+        // --- FLAMESEGMENT SPRITES ---
+        bomb_exploded = new Sprite(DEFAULT_SIZE, 0, 4, tiles, 16, 16);
+        bomb_exploded1 = new Sprite(DEFAULT_SIZE, 0, 5, tiles, 16, 16);
+        bomb_exploded2 = new Sprite(DEFAULT_SIZE, 0, 6, tiles, 16, 16);
+
+        explosion_vertical = new Sprite(DEFAULT_SIZE, 1, 5, tiles, 16, 16);
+        explosion_vertical1 = new Sprite(DEFAULT_SIZE, 2, 5, tiles, 16, 16);
+        explosion_vertical2 = new Sprite(DEFAULT_SIZE, 3, 5, tiles, 16, 16);
+
+        explosion_horizontal = new Sprite(DEFAULT_SIZE, 1, 7, tiles, 16, 16);
+        explosion_horizontal1 = new Sprite(DEFAULT_SIZE, 1, 8, tiles, 16, 16);
+        explosion_horizontal2 = new Sprite(DEFAULT_SIZE, 1, 9, tiles, 16, 16);
+
+        explosion_horizontal_left_last = new Sprite(DEFAULT_SIZE, 0, 7, tiles, 16, 16);
+        explosion_horizontal_left_last1 = new Sprite(DEFAULT_SIZE, 0, 8, tiles, 16, 16);
+        explosion_horizontal_left_last2 = new Sprite(DEFAULT_SIZE, 0, 9, tiles, 16, 16);
+
+        explosion_horizontal_right_last = new Sprite(DEFAULT_SIZE, 2, 7, tiles, 16, 16);
+        explosion_horizontal_right_last1 = new Sprite(DEFAULT_SIZE, 2, 8, tiles, 16, 16);
+        explosion_horizontal_right_last2 = new Sprite(DEFAULT_SIZE, 2, 9, tiles, 16, 16);
+
+        explosion_vertical_top_last = new Sprite(DEFAULT_SIZE, 1, 4, tiles, 16, 16);
+        explosion_vertical_top_last1 = new Sprite(DEFAULT_SIZE, 2, 4, tiles, 16, 16);
+        explosion_vertical_top_last2 = new Sprite(DEFAULT_SIZE, 3, 4, tiles, 16, 16);
+
+        explosion_vertical_down_last = new Sprite(DEFAULT_SIZE, 1, 6, tiles, 16, 16);
+        explosion_vertical_down_last1 = new Sprite(DEFAULT_SIZE, 2, 6, tiles, 16, 16);
+        explosion_vertical_down_last2 = new Sprite(DEFAULT_SIZE, 3, 6, tiles, 16, 16);
+
+        // --- BRICK FLAMESEGMENT --- (These seem like duplicates of bomb_exploded?)
+        // Kiểm tra xem đây có phải là các sprite animation riêng cho gạch vỡ không
+        // Dựa vao ten bien, co the day la cac frame animation rieng
+        // Can kiem tra file sprite sheet de xac dinh
+        brick_exploded = new Sprite(DEFAULT_SIZE, 7, 1, tiles, 16, 16);
+        brick_exploded1 = new Sprite(DEFAULT_SIZE, 7, 2, tiles, 16, 16);
+        brick_exploded2 = new Sprite(DEFAULT_SIZE, 7, 3, tiles, 16, 16);
+
+
+        // --- POWERUPS ---
+        powerupBombs = new Sprite(DEFAULT_SIZE, 0, 10, tiles, 16, 16);
+        powerupFlames = new Sprite(DEFAULT_SIZE, 1, 10, tiles, 16, 16);
+        powerupSpeed = new Sprite(DEFAULT_SIZE, 2, 10, tiles, 16, 16);
+        powerupWallpass = new Sprite(DEFAULT_SIZE, 3, 10, tiles, 16, 16);
+        powerupLife = new Sprite(DEFAULT_SIZE, 4, 10, tiles, 16, 16);
+        powerupKickBomb = new Sprite(DEFAULT_SIZE, 5, 10, tiles, 16, 16);
+        powerupFlamepass = new Sprite(DEFAULT_SIZE, 6, 10, tiles, 16, 16);
+
+        System.out.println("All static sprites have been updated.");
+    }
+
+
+
     public int getSize() {
         return SIZE;
     }
@@ -339,5 +502,6 @@ public class Sprite {
         return pixels[i];
     }
 
-    // TODO: Các phương thức khác nếu có
+    public SpriteSheet getSheet() { return this.sheet; }
+
 }

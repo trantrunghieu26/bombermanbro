@@ -338,6 +338,7 @@ public class Player extends Entity {
             if (canPlaceOnTile && !bombAlreadyExists) {
                 // Truyền tham chiếu đến Bomberman (this) vào constructor của Bomb
                 Bomb newBomb = new Bomb(playerGridX, playerGridY, this.getFlameLength(), this);
+                newBomb.setTimer(2.0);
                 newBomb.setKick(true);
 
                 addBomb(newBomb); // Thêm bomb vào danh sách
@@ -385,6 +386,7 @@ public class Player extends Entity {
     public boolean isInvincible() { return isInvincible; }
     public Controller getController() { return this.con; }
     public void decreaseBombNumber(int amount) { this.bombNumber -= amount; if (this.bombNumber < 0) this.bombNumber = 0; }
+    public Animation getCurrentAnimation() { return this.currentAnimation; }
 
     // Phương thức được gọi bởi Bomb khi nổ để Player có thể đặt thêm bom
     public void increaseBombNumber() {
@@ -411,6 +413,11 @@ public class Player extends Entity {
     public void increaseFlameLength() {
         if(flameLength<MAX_ALLOWED_FLAMES){
             flameLength++;
+            for (List<Bomb> theBomb : this.getController().getBto()) {
+                for (Bomb bomb : theBomb) {
+                    bomb.setFlameLength(1);
+                }
+            }
             System.out.println("Collected FlameItem! New Flame Length: " + flameLength);
         }
         else {

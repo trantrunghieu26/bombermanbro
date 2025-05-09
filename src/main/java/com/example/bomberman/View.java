@@ -13,6 +13,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -22,12 +24,23 @@ public class View {
 
     // attributes//////////////////
 
+    private Image animation0;
+    private Image animation1;
+    private Image animation2;
+    private Image[] imagesA;
     private Random random = new Random();
     private final List<TemporaryAnimation> temporaryAnimations = new ArrayList<>();
 
     // Method
 
-    public View() {};
+    public View() {
+        loadAnimation();
+        if (animation0 != null && animation1 != null && animation2 != null) {
+            imagesA = new Image[]{animation0, animation1, animation2};
+        } else {
+            System.out.println("Those images can't be loaded!");
+        }
+    }
 
     public void renderForAllPLAYING(Controller gameManager) {
         if (gameManager.gc == null) {return;}
@@ -163,7 +176,7 @@ public class View {
         // --- Định dạng chữ ---
         gameManager.gc.setFill(Color.WHITE); // Màu chữ
         Font uiFont = Font.font("Arial", 20); // Chọn Font
-        gameManager.gc.setFont(Bomberman.uiFont);
+        gameManager.gc.setFont(uiFont);
 
         // --- Tính toán vị trí ---
         double padding = 10; // Khoảng cách lề
@@ -258,6 +271,61 @@ public class View {
         gameManager.gc.fillText(resumeText, (gameManager.canvas.getWidth() / 2.0) - (resumeTextWidth / 2.0), y + 40); // Vẽ dưới chữ PAUSED
     }
 
+    public void renderGameOverScreen(Controller gameManager, Font uiFont) {
+        if (gameManager.gc == null || gameManager.canvas == null) return;
+
+        // --- Vẽ nền (ví dụ: đỏ sẫm hoặc đen) ---
+        gameManager.gc.setFill(Color.DARKRED);
+        gameManager.gc.fillRect(0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
+
+        // --- Vẽ chữ "GAME OVER" ---
+        String gameOverText = "GAME OVER";
+        gameManager.gc.setFill(Color.WHITE);
+        // Font lớn
+        Font gameOverFont = (uiFont != null) ? Font.font(uiFont.getFamily(), 60) : Font.font("Arial", 60);
+        gameManager.gc.setFont(gameOverFont);
+        // Căn giữa
+        Text goNode = new Text(gameOverText);
+        goNode.setFont(gameOverFont);
+        double goWidth = goNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(gameOverText, (gameManager.canvas.getWidth() / 2.0) - (goWidth / 2.0), 150);
+
+        // --- Vẽ Điểm số ---
+        String scoreText = "Final Score: " + gameManager.getScore(); // Lấy điểm cuối cùng
+        gameManager.gc.setFill(Color.YELLOW);
+        // Font nhỏ hơn
+        Font scoreFont = (uiFont != null) ? Font.font(uiFont.getFamily(), 24) : Font.font("Arial", 24);
+        gameManager.gc.setFont(scoreFont);
+        // Căn giữa
+        Text scoreNode = new Text(scoreText);
+        scoreNode.setFont(scoreFont);
+        double scoreWidth = scoreNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(scoreText, (gameManager.canvas.getWidth() / 2.0) - (scoreWidth / 2.0), 250);
+
+        // --- Vẽ tùy chọn "Restart" / "Exit" ---
+        String restartText = "Press ENTER to Restart";
+        String exitText = "Press ESC to Exit";
+        String returnMenu = "Press BACK_SPACE to Return Menu";
+        gameManager.gc.setFill(Color.WHITE);
+        gameManager.gc.setFont(scoreFont); // Dùng lại font điểm số
+
+        // Căn giữa Restart
+        Text restartNode = new Text(restartText);
+        restartNode.setFont(scoreFont);
+        double restartWidth = restartNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(restartText, (gameManager.canvas.getWidth() / 2.0) - (restartWidth / 2.0), 350);
+
+        // Căn giữa Exit
+        Text exitNode = new Text(exitText);
+        exitNode.setFont(scoreFont);
+        double exitWidth = exitNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(exitText, (gameManager.canvas.getWidth() / 2.0) - (exitWidth / 2.0), 400); // Cách Restart một chút
+
+        Text returnMenuNode = new Text(returnMenu);
+        returnMenuNode.setFont(scoreFont);
+        double returnMenuWidth = returnMenuNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(returnMenu, (gameManager.canvas.getWidth() / 2.0) - (returnMenuWidth / 2.0), 450);
+    }
 
     public void renderMenu(Controller gameManager, Image menuBackground, Font uiFont, Image handCursorImage) {
         if (gameManager.gc == null || gameManager.canvas == null) return;
@@ -325,56 +393,146 @@ public class View {
         }
     }
 
-
-    public void renderGameOverScreen(Controller gameManager, Font uiFont) {
+    public void renderWinState(Controller gameManager, Image wingame, Font uiFont) {
         if (gameManager.gc == null || gameManager.canvas == null) return;
 
         // --- Vẽ nền (ví dụ: đỏ sẫm hoặc đen) ---
-        gameManager.gc.setFill(Color.DARKRED);
-        gameManager.gc.fillRect(0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
+        if (wingame != null) {
+            gameManager.gc.drawImage(wingame, 0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
+        } else {
+            gameManager.gc.setFill(Color.BLACK);
+            gameManager.gc.fillRect(0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
+        }
 
-        // --- Vẽ chữ "GAME OVER" ---
-        String gameOverText = "GAME OVER";
-        gameManager.gc.setFill(Color.WHITE);
-        // Font lớn
-        Font gameOverFont = (uiFont != null) ? Font.font(uiFont.getFamily(), 60) : Font.font("Arial", 60);
-        gameManager.gc.setFont(gameOverFont);
-        // Căn giữa
-        Text goNode = new Text(gameOverText);
-        goNode.setFont(gameOverFont);
-        double goWidth = goNode.getLayoutBounds().getWidth();
-        gameManager.gc.fillText(gameOverText, (gameManager.canvas.getWidth() / 2.0) - (goWidth / 2.0), 150);
-
-        // --- Vẽ Điểm số ---
-        String scoreText = "Final Score: " + gameManager.getScore(); // Lấy điểm cuối cùng
-        gameManager.gc.setFill(Color.YELLOW);
-        // Font nhỏ hơn
         Font scoreFont = (uiFont != null) ? Font.font(uiFont.getFamily(), 24) : Font.font("Arial", 24);
-        gameManager.gc.setFont(scoreFont);
-        // Căn giữa
-        Text scoreNode = new Text(scoreText);
-        scoreNode.setFont(scoreFont);
-        double scoreWidth = scoreNode.getLayoutBounds().getWidth();
-        gameManager.gc.fillText(scoreText, (gameManager.canvas.getWidth() / 2.0) - (scoreWidth / 2.0), 250);
 
         // --- Vẽ tùy chọn "Restart" / "Exit" ---
         String restartText = "Press ENTER to Restart";
         String exitText = "Press ESC to Exit";
-        gameManager.gc.setFill(Color.WHITE);
+        String returnMenu = "Press BACK_SPACE to Return Menu";
+        gameManager.gc.setFill(Color.BLUE);
         gameManager.gc.setFont(scoreFont); // Dùng lại font điểm số
 
         // Căn giữa Restart
         Text restartNode = new Text(restartText);
         restartNode.setFont(scoreFont);
         double restartWidth = restartNode.getLayoutBounds().getWidth();
-        gameManager.gc.fillText(restartText, (gameManager.canvas.getWidth() / 2.0) - (restartWidth / 2.0), 350);
+        gameManager.gc.fillText(restartText, (gameManager.canvas.getWidth() / 2.0) - (restartWidth / 2.0), 380);
 
         // Căn giữa Exit
         Text exitNode = new Text(exitText);
         exitNode.setFont(scoreFont);
         double exitWidth = exitNode.getLayoutBounds().getWidth();
-        gameManager.gc.fillText(exitText, (gameManager.canvas.getWidth() / 2.0) - (exitWidth / 2.0), 400); // Cách Restart một chút
+        gameManager.gc.fillText(exitText, (gameManager.canvas.getWidth() / 2.0) - (exitWidth / 2.0), 430); // Cách Restart một chút
+
+        Text returnMenuNode = new Text(returnMenu);
+        returnMenuNode.setFont(scoreFont);
+        double returnMenuWidth = returnMenuNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(returnMenu, (gameManager.canvas.getWidth() / 2.0) - (returnMenuWidth / 2.0), 100);
     }
 
     public List<TemporaryAnimation> getTemporaryAnimations() { return this.temporaryAnimations; }
+
+    public void loadAnimation() {
+        try {
+            InputStream ani0 = getClass().getResourceAsStream("/textures/Animation0.png");
+            if (ani0 != null) {
+                animation0 = new Image(ani0); // Load ảnh gốc
+                ani0.close();
+                System.out.println("Loading Animation 0...");
+            } else {
+                System.err.println("Could not find Animation 0.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading Animation 0: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        try {
+            InputStream ani1 = getClass().getResourceAsStream("/textures/Animation1.png");
+            if (ani1 != null) {
+                animation1 = new Image(ani1); // Load ảnh gốc
+                ani1.close();
+                System.out.println("Loading Animation 1...");
+            } else {
+                System.err.println("Could not find Animation 1.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading Animation 1: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        try {
+            InputStream ani2 = getClass().getResourceAsStream("/textures/Animation2.png");
+            if (ani2 != null) {
+                animation2 = new Image(ani2); // Load ảnh gốc
+                ani2.close();
+                System.out.println("Loading Animation 2...");
+            } else {
+                System.err.println("Could not find Animation 2.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading Animation 2: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void renderSetting(Controller gameManager, Font uiFont) {
+        if (gameManager.gc == null || gameManager.canvas == null) return;
+
+        gameManager.gc.clearRect(0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
+        gameManager.gc.setFill(Color.BLACK);
+        gameManager.gc.fillRect(0, 0, gameManager.canvas.getWidth(), gameManager.canvas.getHeight());
+
+        // --- Vẽ Tiêu đề Game ---
+        gameManager.gc.setFill(Color.BLUE); // Đổi màu nếu cần
+        Font titleFont = Font.font(uiFont.getFamily(), 60); // Lấy font đã load
+        gameManager.gc.setFont(titleFont);
+        String title = "SETTING";
+        Text titleNode = new Text(title);
+        titleNode.setFont(titleFont);
+        double titleWidth = titleNode.getLayoutBounds().getWidth();
+        gameManager.gc.fillText(title, (gameManager.canvas.getWidth() / 2.0) - (titleWidth / 2.0), 80);
+
+        // 3. Vẽ các lựa chọn
+        gameManager.gc.setFont(uiFont); // Đặt lại font cho lựa chọn
+
+        double poX = gameManager.canvas.getWidth() / 20.0;
+        double poY = titleNode.getLayoutBounds().getHeight() + 100;
+
+        double imageWidth = animation0.getWidth();
+        double imageHeight = animation0.getHeight();
+
+        double startY = 200;
+        double spacing = 50;
+        String sample = "Animation 0: is selected";
+        Text theText = new Text(sample);
+
+        for (int i = 0; i < gameManager.Animations.length; i++) {
+            if (gameManager.isAnimations[i]) {
+                gameManager.Animations[i] = "Animation " + i + ": is selected";
+            } else {
+                gameManager.Animations[i] = "Animation " + i;
+            }
+
+            String optionText = gameManager.Animations[i];
+            Text textNode = new Text(optionText);
+            textNode.setFont(uiFont);
+            double sampleWidth = theText.getLayoutBounds().getWidth();
+
+            double midConstant = (gameManager.canvas.getWidth() / 2.0) - (sampleWidth / 2.0);
+            double xPosition = midConstant + (gameManager.canvas.getWidth() / 6.5);
+            double yPosition = startY + i * spacing;
+
+            // Highlight
+            if (i == gameManager.selectSetting) {
+                gameManager.gc.setFill(Color.YELLOW); // Màu khi được chọn
+            } else {
+                gameManager.gc.setFill(Color.BLUE); // Màu bình thường
+            }
+            gameManager.gc.fillText(optionText, xPosition, yPosition);
+        }
+
+        gameManager.gc.drawImage(imagesA[gameManager.selectSetting], poX, poY, imageWidth / 3, imageHeight / 3);
+    }
 }
