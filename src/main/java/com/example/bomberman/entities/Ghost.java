@@ -6,10 +6,6 @@ import com.example.bomberman.Map.Tile;
 import com.example.bomberman.Map.TileType;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.Image;
-
-import java.util.*; // Import Random và List
 
 public class Ghost extends Enemy {
 
@@ -41,7 +37,6 @@ public class Ghost extends Enemy {
 
             // Nếu có hướng đến Player và có thể bắt đầu di chuyển theo hướng đó (Ghost có thể đi xuyên gạch)
             if (dirToPlayer != Direction.NONE && canMoveTowards(dirToPlayer)) {
-                //System.out.println("GHOST DEBUG: Chasing player. Direction: " + dirToPlayer); // Log
                 currentDirection = dirToPlayer;
                 isMoving = true;
                 updateAnimationForDirection(currentDirection);
@@ -53,7 +48,6 @@ public class Ghost extends Enemy {
         // Hoặc nếu nó đang di chuyển rồi (isMoving=true), thêm xác suất đổi hướng ngẫu nhiên.
         // Nếu !isMoving (vừa bị chặn), nó sẽ luôn gọi setRandomDirection() ở đây.
         if (!isMoving || random.nextDouble() < RANDOM_CHANGE_PROBABILITY) {
-            //System.out.println("GHOST DEBUG: Chasing failed or random chance. Calling setRandomDirection."); // Log
             setRandomDirection(); // Chọn hướng ngẫu nhiên (sẽ chọn hướng đi được theo luật của Ghost)
         }
         // Nếu đang di chuyển và không đổi hướng ngẫu nhiên, nó sẽ tiếp tục đi theo currentDirection
@@ -77,8 +71,6 @@ public class Ghost extends Enemy {
     }
 
 
-    // Override isObstacle để Ghost có thể đi xuyên gạch.
-    // Ghost bị chặn bởi WALL và BOMBS.
     @Override
     protected boolean isObstacle(int gX, int gY) {
         // Kiểm tra biên bản đồ

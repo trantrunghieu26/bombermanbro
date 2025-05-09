@@ -7,10 +7,7 @@ import com.example.bomberman.graphics.Sprite;
 import com.example.bomberman.graphics.Animation;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
-import com.example.bomberman.entities.Items.Item; // IMPORT LỚP ITEM
-import com.example.bomberman.entities.Bomb; // IMPORT LỚP BOMB
-// TODO: IMPORT LỚP ENEMY khi bạn triển khai nó
-// import com.example.bomberman.entities.Enemy;
+import com.example.bomberman.entities.Items.Item;
 
 
 import java.util.HashSet;
@@ -241,14 +238,12 @@ public class Player {
         if (currentBombs > 0 && !isBombAtCurrentLocation) {
             // Xác định vị trí lưới chính xác để đặt bom (làm tròn vị trí pixel của Playe
 
-            // TODO: Kiểm tra xem vị trí đặt bom có hợp lệ không (ví dụ: không đặt trong tường cứng)
             Tile tileAtBombPos = map.getTile(bombGridX, bombGridY);
             if (map != null) { // Kiểm tra map không null
                 tileAtBombPos = map.getTile(bombGridX, bombGridY);
             }
             if (tileAtBombPos != null && tileAtBombPos.getType() == TileType.WALL) {
                 System.out.println("Cannot place bomb inside a solid wall.");
-                // TODO: Âm thanh báo lỗi
                 return;
             }
 
@@ -263,17 +258,14 @@ public class Player {
                 // Giảm số lượng bom mà Player có thể đặt SAU KHI thêm thành công
                 gameManager.playBombPlacedSound();
                 currentBombs--;
-                // TODO: Phát âm thanh đặt bom
             } else {
 
             }
 
         } else if (isBombAtCurrentLocation) {
             System.out.println("Cannot place bomb: Another bomb is already at (" + bombGridX + ", " + bombGridY + ")");
-            // TODO: Phát âm thanh báo lỗi (ví dụ: tiếng "tạch")
         } else { // Trường hợp currentBombs <= 0
             System.out.println("Cannot place bomb: No bombs available (Current: " + currentBombs + "/" + maxBombs + ")");
-            // TODO: Phát âm thanh báo lỗi
         }
     }
 
@@ -291,10 +283,8 @@ public class Player {
         if(maxBombs<MAX_ALLOWED_BOMBS){
             maxBombs++;
             currentBombs++; System.out.println("Collected BombItem! New Max Bombs: " + maxBombs + ", Current Bombs: " + currentBombs);
-            // TODO: Có thể phát âm thanh power-up thành công
         } else {
             System.out.println("Max bomb limit reached (" + MAX_ALLOWED_BOMBS + ").");
-            // TODO: Có thể phát âm thanh báo đã max hoặc cộng điểm thay thế
             gameManager.addScore(50); // Ví dụ: cộng điểm nếu đã max
         }
     }
@@ -308,7 +298,6 @@ public class Player {
         }
         else {
             System.out.println("Max flame length reached (" + MAX_ALLOWED_FLAMES + ").");
-            // TODO: Âm thanh báo max / Cộng điểm
             gameManager.addScore(50);
         }
 
@@ -321,16 +310,13 @@ public class Player {
             speed+=50;
             speed = Math.min(speed, MAX_ALLOWED_SPEED);
             System.out.println("Collected SpeedItem! New Speed: " + speed); // Log
-            // TODO: Âm thanh power-up
         }
         else{
             System.out.println("Max speed reached (" + MAX_ALLOWED_SPEED + ").");
-            // TODO: Âm thanh báo max / Cộng điểm
             gameManager.addScore(50);
 
         }
 
-        // TODO: Giới hạn tốc độ tối đa tuyệt đối (ví dụ: speed không quá 250)
     }
 
     // --- Phương thức áp dụng hiệu ứng từ Item LifeItem ---
@@ -338,7 +324,6 @@ public class Player {
     public void increaseLives() {
         lives++; // Tăng số mạng
         System.out.println("Collected LifeItem! New Lives: " + lives); // Log
-        // TODO: Giới hạn số mạng tối đa tuyệt đối (ví dụ: lives không quá 9)
     }
 
     // --- Phương thức áp dụng hiệu ứng từ Item KickBombItem ---
@@ -346,10 +331,8 @@ public class Player {
     public void enableKickBomb() {
         this.canKickBomb = true; // Bật khả năng Đá Bom cho Player
         System.out.println("Kick Bomb ability enabled for Player."); // Log
-        // TODO: Thêm hiệu ứng hình ảnh cho Player khi có khả năng Đá Bom (tùy chọn)
     }
 
-    // TODO: Thêm phương thức applyEffect cho các item khác khi triển khai (canPassBrick, canPassFlame, Invincibility)
 
 
     // --- Phương thức cập nhật trạng thái Player mỗi frame ---
@@ -397,10 +380,7 @@ public class Player {
 
         // LẤY DANH SÁCH BOM (VÀ ENEMY SAU NÀY) TỪ GAMEMANAGER ĐỂ KIỂM TRA VA CHẠM THỰC THỂ
         // Cần phương thức public List<Bomb> getBombs() trong lớp Bomberman (đã thêm ở bước trước)
-        // TODO: Cần phương thức public List<Enemy> getEnemies() sau này
         List<com.example.bomberman.entities.Bomb> bombs = (gameManager != null) ? gameManager.getBombs() : null;
-        // TODO: List<Object> enemies = (gameManager != null) ? gameManager.getEnemies() : null; // Tạm thời bỏ Enemy
-
 
         // --- Cập nhật vị trí dựa trên hướng di chuyển và tốc độ ---
         if (isMoving) {
@@ -429,7 +409,7 @@ public class Player {
             if (deltaPixelX != 0) {
                 // GỌI PHƯƠNG THỨC checkCollision ĐÃ SỬA ĐỔI, TRUYỀN DANH SÁCH BOM (VÀ ENEMY)
                 // CHỈ TRUYỀN DANH SÁCH BOM TẠM THỜI VÌ CHƯA CÓ ENEMY
-                canMoveX = !checkCollision(nextPixelX, pixelY, bombs /* TODO: Thêm enemies vào đây sau */); // checkCollision giờ kiểm tra cả Tile và Bom chặn
+                canMoveX = !checkCollision(nextPixelX, pixelY, bombs ); // checkCollision giờ kiểm tra cả Tile và Bom chặn
             }
 
             // Cập nhật tạm thời pixelX (hoặc neo lại nếu va chạm X) để kiểm tra va chạm Y
@@ -441,14 +421,13 @@ public class Player {
                 tempPixelX = (deltaPixelX > 0) ?
                         (int) Math.floor((pixelX + Sprite.SCALED_SIZE - 1) / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE :
                         (int) Math.ceil(pixelX / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE;
-                // TODO: Tinh chỉnh logic neo này nếu va chạm với Entity có kích thước khác Tile.
             }
 
             // Kiểm tra va chạm làm vật cản cho chuyển động theo trục Y tại vị trí nextPixelY (sử dụng tempPixelX đã điều chỉnh)
             if (deltaPixelY != 0) {
                 // GỌI PHƯƠNG THỨC checkCollision ĐÃ SỬA ĐỔI, TRUYỀN DANH SÁCH BOM (VÀ ENEMY)
                 // CHỈ TRUYỀN DANH SÁCH BOM TẠM THỜI VÌ CHƯA CÓ ENEMY
-                canMoveY = !checkCollision(tempPixelX, nextPixelY, bombs /* TODO: Thêm enemies vào đây sau */); // checkCollision giờ kiểm tra cả Tile và Bom chặn
+                canMoveY = !checkCollision(tempPixelX, nextPixelY, bombs ); // checkCollision giờ kiểm tra cả Tile và Bom chặn
             }
 
             // --- Cập nhật vị trí pixel cuối cùng nếu có thể di chuyển ---
@@ -463,19 +442,9 @@ public class Player {
             this.gridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
             this.gridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
 
-            // TODO: Kiểm tra va chạm với Portal sau khi cập nhật vị trí (Logic chuyển màn)
-            // Logic chặn bởi Portal (nếu nó chặn) đã nằm trong checkCollision.
-            // Logic chuyển màn khi đứng trên Portal và đủ điều kiện (hết quái vật) sẽ ở đây.
-            // Tile currentTile = map.getTile(gridX, gridY);
-            // if (currentTile != null && currentTile.getType() == TileType.PORTAL) {
-            //     // if (gameManager != null && gameManager.allEnemiesDefeated()) { // Cần getEnemies() và logic đếm/kiểm tra trong Bomberman
-            //     //    gameManager.levelCleared(); // Cần phương thức levelCleared() trong Bomberman
-            //     // }
-            // }
 
-            // --- SỬA LỖI: CẬP NHẬT TIMER ANIMATION KHI ĐANG DI CHUYỂN ---
             if (currentAnimation != null) {
-                animationTimer += deltaTime; // THÊM DÒNG NÀY ĐỂ TIMER CHẠY KHI DI CHUYỂN
+                animationTimer += deltaTime;
             }
 
 
@@ -484,15 +453,9 @@ public class Player {
             // Logic này giữ nguyên, nhưng giờ timer cũng chạy khi di chuyển ở khối if
             if (currentAnimation != null) {
                 animationTimer += deltaTime;
-                // TODO: Cập nhật animation khi chết nếu !isAlive
             }
         }
 
-
-        // TODO: Xóa logic kiểm tra va chạm Player với Entity (Bom, Enemy, Flame, Item) khỏi Bomberman.handle
-        // Ngoại trừ logic KÍCH HOẠT Đá Bom và logic nhận sát thương/nhặt item.
-        // Va chạm chặn di chuyển đã được xử lý ở trên trong checkCollision.
-        // Va chạm nhận sát thương (Flame, Enemy) và nhặt Item sẽ được xử lý ở Bomberman.handle hoặc Entity base class.
 
     }
 
@@ -502,7 +465,7 @@ public class Player {
     // Trả về true nếu CÓ va chạm làm vật cản, false nếu KHÔNG va chạm.
     // CHỮ KÝ ĐƯỢC SỬA ĐỔI ĐỂ NHẬN DANH SÁCH BOM (VÀ ENEMY)
     // TẠM THỜI KHÔNG NHẬN DANH SÁCH ENEMY VÌ CHƯA CÓ LỚP ENEMY
-    private boolean checkCollision(double checkPixelX, double checkPixelY, List<Bomb> bombs /* TODO: Thêm List<Object> enemies sau này */) {
+    private boolean checkCollision(double checkPixelX, double checkPixelY, List<Bomb> bombs ) {
         this.kickableBombPending = null;
         this.kickDirectionPending = Direction.NONE;
 
@@ -548,8 +511,6 @@ public class Player {
                     // System.out.println("Player blocked by Tile at (" + checkGridX + "," + checkGridY + ") at checked position."); // Log va chạm Tile (có thể quá nhiều)
                     return true; // Va chạm với vật cản (Tile) -> CHẶN
                 }
-                // TODO: Xử lý va chạm với Portal sau này (nó chỉ chặn nếu chưa đủ điều kiện)
-                // else if (tile.getType() == TileType.PORTAL) { ... if(isBlocking) return true; }
             }
         }
 
@@ -628,7 +589,6 @@ public class Player {
                             this.kickDirectionPending = this.currentDirection;
                         }
                         // Nếu Player CÓ khả năng đá và Bom CHƯA bị đá, thì va chạm này KHÔNG chặn di chuyển (return false sẽ xảy ra sau vòng lặp)
-                        // TODO: Xử lý Player va chạm với Bom ĐANG BỊ ĐÁ (Player có thể bị đẩy?) sau này. Hiện tại nó sẽ chặn di chuyển.
                     }
                 }
             }
@@ -658,7 +618,6 @@ public class Player {
                 playerBottom > itemTop && playerTop < itemBottom;
     }
     public boolean collidesWith(com.example.bomberman.entities.Bomb bomb) {
-        // TODO: Có thể thêm kiểm tra trạng thái Player (ví dụ: isDead) nếu Player chết không va chạm với Bom
         // if (!this.isAlive()) return false;
 
         // Kiểm tra xem Bomb có null, không active hoặc đã nổ chưa
@@ -686,9 +645,6 @@ public class Player {
                 playerBottom > bombTop && playerTop < bombBottom;
     }
 
-    // TODO: Thêm các phương thức va chạm chồng lấn với Entity khác (Enemy, Flame) sau này
-    // public boolean collidesWith(Enemy enemy) { ... }
-    // public boolean collidesWith(Flame flame) { ... }
 
 
     // --- Getters ---
@@ -715,9 +671,6 @@ public class Player {
     public boolean isDyingTemporarily() {
         return isDyingTemporarily;
     }
-    // TODO: public boolean canKickBomb() { return canKickBomb; } // Có thể thay thuộc tính public bằng getter
-    // TODO: Getters cho các thuộc tính Powerup nâng cao khác (canPassBrick, canPassFlame, isInvincible)
-
 
     // Phương thức được gọi bởi Vòng lặp Game để vẽ Player
     public void render(GraphicsContext gc) {
@@ -767,7 +720,6 @@ public class Player {
     }
     public Bomberman getGameManager() { return gameManager; }
 
-    //TODO: Phương thức nhận sát thương
     public void takeDamage(int damage) {
         if (!isAlive) return;
         if (isDyingTemporarily) { // Không nhận sát thương khi đang trong animation chết
@@ -785,14 +737,12 @@ public class Player {
         }
     }
 
-    // TODO: Phương thức chết
     private void die() {
         if(!isAlive) return;
         isAlive = false;
         isMoving = false; // Dừng di chuyển
         currentDirection = Direction.NONE; // Reset hướng
         System.out.println("Player died."); // Log
-        // TODO: Phát âm thanh chết
     }
 
     public void respawn() {

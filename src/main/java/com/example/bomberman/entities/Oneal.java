@@ -1,14 +1,10 @@
 package com.example.bomberman.entities;
 import com.example.bomberman.Bomberman;
 import com.example.bomberman.Map.Map;
-// Không cần import Tile, TileType ở đây nữa vì không override isObstacle
-// import com.example.bomberman.Map.Tile;
-// import com.example.bomberman.Map.TileType;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
 
-import java.util.*; // Import Random và List
-import java.lang.Math; // Import Math cho abs (được dùng trong getDirectionTowards)
+import java.lang.Math;
 
 
 public class Oneal extends Enemy {
@@ -20,9 +16,6 @@ public class Oneal extends Enemy {
     private static final double RANDOM_CHANGE_PROBABILITY = 0.01; // Ví dụ: 1% cơ hội mỗi frame để đổi hướng
 
 
-    // Không còn các thuộc tính liên quan đến BFS/pathfinding phức tạp
-
-
     public Oneal(int startGridX, int startGridY, Map map, Bomberman gameManager) {
         super(startGridX, startGridY, ONEAL_SPEED, ONEAL_SCORE, map, gameManager);
 
@@ -31,7 +24,6 @@ public class Oneal extends Enemy {
         double frameDuration = 0.2; // Có thể thử 0.18, 0.15... tùy cảm giác
         walkLeftAnimation = new Animation(frameDuration, true, Sprite.oneal_left1, Sprite.oneal_left2, Sprite.oneal_left3);
         walkRightAnimation = new Animation(frameDuration, true, Sprite.oneal_right1, Sprite.oneal_right2, Sprite.oneal_right3);
-        // Animation chết dùng chung mob_dead hoặc oneal_dead
         deadAnimation = new Animation(TIME_TO_DIE / 4.0, false, // Sử dụng 4 frame cho đồng nhất với Doll
                 Sprite.oneal_dead,
                 Sprite.mob_dead1,
@@ -61,11 +53,10 @@ public class Oneal extends Enemy {
             // canMoveTowards() sử dụng checkMovementCollision(), checkMovementCollision() gọi isObstacle().
             // Oneal giờ sử dụng isObstacle() mặc định của Enemy, chặn WALL, BRICK, BOMB.
             if (dirToPlayer != Direction.NONE && canMoveTowards(dirToPlayer)) {
-                //System.out.println("ONEAL DEBUG: Chasing player. Direction: " + dirToPlayer); // Log
                 currentDirection = dirToPlayer; // Đặt hướng di chuyển là hướng thẳng đến Player
                 isMoving = true;
                 // updateAnimationForDirection(currentDirection); // Animation được cập nhật ở move()
-                return; // Đã quyết định hành động (đuổi theo)
+                return;
             }
         }
 
@@ -122,7 +113,6 @@ public class Oneal extends Enemy {
      * isObstacle() mặc định coi WALL và BRICK là vật cản.
      * Nó cũng coi BOMB là vật cản (nếu gameManager.isBombAtGrid() đúng).
      */
-    // @Override // XÓA DÒNG NÀY VÀ PHƯƠNG THỨC ISOBSTACLE() DƯỚI ĐÂY
     /*
     protected boolean isObstacle(int gX, int gY) {
         // ... logic từ phiên bản trước đã bỏ qua BRICK ...
@@ -141,8 +131,5 @@ public class Oneal extends Enemy {
     public double getSpeed() { return speed; }
     public Direction getCurrentDirection() { return currentDirection; }
     public boolean isMoving() { return isMoving; }
-    // Getter cho cờ active từ Entity
-    // public boolean isActive() { return active; } // Đã có trong Entity
-    // Getter cho trạng thái sống game play
-    // public boolean isAlive() { return isAlive; } // Đã có trong Entity
+
 }

@@ -1,0 +1,2379 @@
+package com.example.bomberman.entities;
+
+import com.example.bomberman.Bomberman;
+import com.example.bomberman.Map.Map;
+import com.example.bomberman.Map.Tile;
+import com.example.bomberman.Map.TileType;
+import com.example.bomberman.graphics.Animation;
+import com.example.bomberman.graphics.Sprite;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
+
+import java.util.*;
+
+public abstract class Enemy extends Entity {
+
+
+    protected double speed;
+    protected Direction currentDirection = Direction.NONE;
+    protected boolean isMoving = false;
+    protected Random random = new Random();
+
+    // --- Thuộc tính trạng thái (isAlive, active đã có trong Entity) ---
+    // protected boolean active = true; // Sử dụng active từ Entity
+    protected boolean isAlive = true; // Vẫn giữ cờ isAlive cho rõ ràng trạng thái sống/chết game play
+    protected double dyingTimer = 0; // Thời gian cho animation chết
+    protected final double TIME_TO_DIE = 0.8; // Thời gian animation chết (giây)
+    protected int scoreValue; // Điểm nhận được khi tiêu diệt
+
+    protected Map map;
+    protected Bomberman gameManager;
+
+    protected Animation walkLeftAnimation;
+    protected Animation walkRightAnimation;
+    protected Animation deadAnimation;
+    protected Animation currentAnimation;
+    protected double animationTimer = 0;
+
+    protected Direction lastNonNoneDirection = Direction.DOWN; // Mặc định hướng xuống
+
+    // --- Thêm các thuộc tính mới để xử lý bị kẹt ---
+    private Direction lastAttemptedDirection = Direction.NONE; // Hướng vừa cố gắng đi và bị chặn
+    private int consecutiveBlocks = 0;
+    private final int MAX_CONSECUTIVE_BLOCKS = 4; // Ngưỡng bị kẹt: Số lần liên tiếp bị chặn theo cùng một hướng
+
+
+    public Enemy(int startGridX, int startGridY, double speed, int scoreValue, Map map, Bomberman gameManager) {
+        super(startGridX, startGridY, null);
+
+        // Cập nhật vị trí pixel và lưới từ Entity sau khi gọi super()
+        this.gridX = startGridX;
+        this.gridY = startGridY;
+        this.x = startGridX * Sprite.SCALED_SIZE;
+        this.y = startGridY * Sprite.SCALED_SIZE;
+
+        this.speed = speed;
+        this.scoreValue = scoreValue;
+        this.map = map;
+        this.gameManager = gameManager;
+        this.isAlive = true; // Bắt đầu là sống
+
+        // Chọn hướng di chuyển ban đầu ngẫu nhiên
+        setRandomDirection(); // Enemy bắt đầu bằng cách chọn hướng ngẫu nhiên đầu tiên
+        // Cập nhật lastNonNoneDirection nếu setRandomDirection chọn hướng khác NONE
+        if (currentDirection != Direction.NONE) {
+            lastNonNoneDirection = currentDirection;
+        } else {
+            // Nếu không tìm được hướng nào khi spawn, mặc định hướng xuống
+            lastNonNoneDirection = Direction.DOWN;
+            // Cập nhật animation đứng yên mặc định (sẽ được làm ở updateAnimationForDirection)
+        }
+    }
+
+    // --- Phương thức cập nhật chung ---
+    @Override // Override từ Entity
+    public void update(double deltaTime) {
+        if (!isActive()) return; // Sử dụng cờ active từ Entity
+
+        // Nếu đang trong quá trình chết (animation chết đang chạy)
+        if (!isAlive) {
+            dyingTimer += deltaTime;
+            animationTimer += deltaTime; // Cập nhật timer cho animation chết
+            // Cờ active sẽ được đặt false bởi Bomberman sau khi dyingTimer >= TIME_TO_DIE
+            return; // Dừng update logic di chuyển nếu đang chết
+        }
+
+        // Cập nhật timer animation chung (dùng cho animation di chuyển)
+        animationTimer += deltaTime;
+
+        // Tính toán bước di chuyển tiếp theo (logic cụ thể trong lớp con)
+        // calculateNextMove() sẽ quyết định DESIRED currentDirection cho frame này
+        calculateNextMove();
+
+        // Thực hiện di chuyển dựa trên currentDirection được quyết định bởi calculateNextMove()
+        move(deltaTime);
+
+        // Cập nhật vị trí lưới sau khi di chuyển
+        updateGridPosition(); // Di chuyển updateGridPosition xuống đây
+        // checkFlameCollisions();
+    }
+
+    // --- Phương thức di chuyển ---
+    // Thực hiện di chuyển vật lý và xử lý va chạm/neo
+    protected void move(double deltaTime) {
+        // Nếu không có hướng di chuyển, chuyển sang animation đứng yên và dừng
+        if (currentDirection == Direction.NONE) {
+            isMoving = false; // Đảm bảo cờ isMoving là false
+            updateAnimationForDirection(Direction.NONE);
+            return;
+        }
+
+        // Nếu có hướng di chuyển, đánh dấu là đang di chuyển và cập nhật animation
+        isMoving = true; // Đảm bảo cờ isMoving là true
+        updateAnimationForDirection(currentDirection);
+
+
+        double deltaPixelX = 0;
+        double deltaPixelY = 0;
+
+        switch (currentDirection) {
+            case UP:    deltaPixelY = -speed * deltaTime; break;
+            case DOWN:  deltaPixelY = speed * deltaTime; break;
+            case LEFT:  deltaPixelX = -speed * deltaTime; break;
+            case RIGHT: deltaPixelX = speed * deltaTime; break;
+            case NONE: break; // Trường hợp này không xảy ra nhờ kiểm tra ở trên
+        }
+
+        double nextPixelX = x + deltaPixelX; // Vị trí X dự kiến
+        double nextPixelY = y + deltaPixelY; // Vị trí Y dự kiến
+
+        boolean collided = false;
+
+        if (deltaPixelX != 0) {
+            // Kiểm tra va chạm tại vị trí X mới (nextPixelX), Y cũ (y)
+            if (checkMovementCollision(nextPixelX, y)) {
+                collided = true;
+                if (deltaPixelX > 0) { // Di chuyển sang phải
+                    x = (int) Math.floor((x + width) / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE - width;
+                } else { // Di chuyển sang trái
+                    x = (int) Math.ceil(x / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE;
+                }
+            } else {
+                // Nếu không bị chặn theo X, cập nhật vị trí X
+                x = nextPixelX;
+            }
+        }
+
+
+        // --- Xử lý va chạm trục Y và di chuyển/neo ---
+        // Sử dụng vị trí X đã CẬP NHẬT (hoặc neo lại) để kiểm tra va chạm theo Y
+        if (deltaPixelY != 0) {
+            // Kiểm tra va chạm tại vị trí X hiện tại (sau xử lý X), Y mới (nextPixelY)
+            if (checkMovementCollision(x, nextPixelY)) {
+                collided = true;
+                // Nếu bị chặn, neo Enemy lại sát cạnh vật cản theo trục Y
+                if (deltaPixelY > 0) { // Di chuyển xuống
+                    y = (int) Math.floor((y + height) / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE - height;
+                } else { // Di chuyển lên
+                    y = (int) Math.ceil(y / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE;
+                }
+            } else {
+                // Nếu không bị chặn theo Y, cập nhật vị trí Y
+                y = nextPixelY;
+            }
+        }
+
+        // Nếu bị chặn theo bất kỳ trục nào trong frame này
+        if (collided) {
+            // Gọi logic xử lý bị chặn với hướng mà nó đang cố gắng đi (currentDirection)
+            // handleBlockedMovement sẽ đặt currentDirection về NONE và isMoving về false nếu không tìm được hướng thay thế
+            handleBlockedMovement(currentDirection);
+        }
+        // Nếu không bị chặn, move thành công và cờ isMoving + currentDirection vẫn giữ nguyên (đã set ở đầu hàm)
+        // consecutiveBlocks và lastAttemptedDirection chỉ được reset trong setRandomDirection() và handleBlockedMovement()
+    }
+
+    /**
+     * Phương thức xử lý khi Enemy bị chặn khi cố gắng di chuyển theo `blockedDirection`.
+     * Đặt trạng thái bị chặn và cố gắng tìm hướng thay thế.
+     * Được gọi bởi move() khi phát hiện va chạm.
+     * @param blockedDirection Hướng mà Enemy vừa cố gắng đi và bị chặn.
+     */
+    protected void handleBlockedMovement(Direction blockedDirection) {
+        //System.out.println("ENEMY DEBUG: Blocked attempting to move " + blockedDirection + " at grid (" + gridX + "," + gridY + ")"); // Log
+
+        // Đặt trạng thái không di chuyển tạm thời
+        isMoving = false;
+        currentDirection = Direction.NONE; // Đặt hướng về NONE tạm thời
+
+        // Đếm số lần bị chặn liên tiếp theo hướng vừa cố gắng đi
+        if (blockedDirection != Direction.NONE && blockedDirection == lastAttemptedDirection) {
+            consecutiveBlocks++;
+        } else {
+            consecutiveBlocks = 1;
+            lastAttemptedDirection = blockedDirection; // Lưu hướng vừa bị chặn
+        }
+
+        // Nếu bị kẹt ở hướng này quá nhiều lần -> thử chiến lược ngẫu nhiên mạnh hơn
+        if (consecutiveBlocks >= MAX_CONSECUTIVE_BLOCKS) {
+            // System.out.println("ENEMY DEBUG: Stuck threshold (" + MAX_CONSECUTIVE_BLOCKS + ") reached for " + blockedDirection + ". Forcing random re-direction.");
+            // Reset bộ đếm và hướng bị chặn
+            consecutiveBlocks = 0;
+            lastAttemptedDirection = Direction.NONE;
+
+            setRandomDirection();
+            return; // Đã tìm hướng mới hoặc không tìm được, thoát
+        }
+
+
+        // --- Logic tìm hướng thay thế thông minh hơn (khi chưa đạt ngưỡng kẹt) ---
+        // Các lớp con có thể ghi đè calculateNextMove để có logic tìm đường phức tạp hơn (BFS),
+        // nhưng khi bị chặn và chưa đến lúc chạy lại calculateNextMove phức tạp,
+        // logic này cung cấp một cách phản ứng nhanh.
+
+        List<Direction> alternativeDirections = new ArrayList<>();
+
+        // 1. Ưu tiên hướng vuông góc với hướng bị chặn
+        if (blockedDirection == Direction.UP || blockedDirection == Direction.DOWN) {
+            alternativeDirections.add(Direction.LEFT);
+            alternativeDirections.add(Direction.RIGHT);
+        } else if (blockedDirection == Direction.LEFT || blockedDirection == Direction.RIGHT) {
+            alternativeDirections.add(Direction.UP);
+            alternativeDirections.add(Direction.DOWN);
+        }
+        // Không cần thêm hướng bị chặn vào danh sách này
+
+        // Xáo trộn các hướng thay thế (để có sự ngẫu nhiên nhưng vẫn ưu tiên hướng vuông góc)
+        Collections.shuffle(alternativeDirections);
+
+        // Thử các hướng thay thế đã được ưu tiên và xáo trộn
+        for (Direction alternativeDir : alternativeDirections) {
+            // Chỉ kiểm tra xem hướng mới có thể BẮT ĐẦU đi được không
+            if (canMoveTowards(alternativeDir)) { // Sử dụng canMoveTowards đã cải tiến
+                currentDirection = alternativeDir;
+                isMoving = true;
+                // KHÔNG reset consecutiveBlocks/lastAttemptedDirection ở đây.
+                // Nếu nó lại bị chặn theo hướng này, bộ đếm sẽ tăng lên.
+                // updateAnimationForDirection(currentDirection); // Animation được cập nhật ở move()
+                return; // Đã tìm thấy hướng mới, thoát
+            }
+        }
+
+        // Nếu không tìm thấy hướng thay thế khả thi từ các hướng vuông góc (và chưa đạt ngưỡng kẹt)
+        // Enemy sẽ đứng yên tạm thời (isMoving=false, currentDirection=NONE)
+        // calculateNextMove() ở frame tiếp theo sẽ thấy !isMoving
+        // và sẽ gọi logic của Enemy cụ thể (random cho Balloom/Doll, BFS cho Oneal, chase/random for Ghost)
+        // logic đó sẽ gọi setRandomDirection() HOẶC tìm đường đi mới bằng BFS,
+        // sử dụng canMoveTowards đã cải tiến.
+
+        // System.out.println("ENEMY DEBUG: No immediate alternative direction found from handleBlockedMovement. Stopping for now."); // Log
+        // currentDirection và isMoving đã được đặt false ở đầu hàm
+    }
+
+
+    /**
+     * Kiểm tra xem Enemy có thể BẮT ĐẦU di chuyển theo hướng `direction` hay không.
+     * Phương pháp kiểm tra chặt chẽ hơn bằng cách giả lập bước di chuyển bằng tốc độ
+     * trong một khoảng thời gian nhỏ (ví dụ 1 frame) và sử dụng logic va chạm pixel.
+     * Trả về true nếu có thể bắt đầu đi, false nếu bị chặn ngay lập tức.
+     */
+    protected boolean canMoveTowards(Direction direction) {
+        if (direction == Direction.NONE) return true; // Luôn có thể "di chuyển" theo hướng NONE (đứng yên)
+
+        // Giả lập vị trí sau một bước di chuyển nhỏ (tương đương 1 frame)
+        double testPixelX = x; // Vị trí pixel hiện tại (góc trên bên trái)
+        double testPixelY = y;
+
+        // Tính toán bước di chuyển trong một frame giả định (ví dụ: 1/60 giây)
+        double step = speed * (1.0 / 60.0); // Sử dụng tốc độ thực tế và thời gian frame cố định (hoặc nhỏ hơn)
+
+        switch (direction) {
+            case UP:    testPixelY -= step; break;
+            case DOWN:  testPixelY += step; break;
+            case LEFT:  testPixelX -= step; break;
+            case RIGHT: testPixelX += step; break;
+            default: return false; // Không kiểm tra hướng khác
+        }
+
+        // Sử dụng logic va chạm pixel (checkMovementCollision) để kiểm tra xem
+        // hộp va chạm của Enemy tại vị trí (testPixelX, testPixelY) có bị vật cản chặn hay không.
+        // CheckCollision logic sẽ gọi isObstacleAtPixel, sử dụng isObstacle của lớp con.
+        return !checkMovementCollision(testPixelX, testPixelY);
+    }
+
+
+    /**
+     * Kiểm tra va chạm pixel-perfect tại một vị trí (checkPixelX, checkPixelY).
+     * Phương thức này kiểm tra nhiều điểm bên trong hộp va chạm
+     * và gọi isObstacleAtPixel (sử dụng isObstacle() của lớp con).
+     * @param checkPixelX Vị trí X (pixel) để kiểm tra.
+     * @param checkPixelY Vị trí Y (pixel) để kiểm tra.
+     * @return true nếu có va chạm làm vật cản tại vị trí đó, false nếu không.
+     */
+    protected boolean checkMovementCollision(double checkPixelX, double checkPixelY) {
+        double entitySize = Sprite.SCALED_SIZE;
+        // Buffer va chạm. Giá trị này quan trọng để Enemy không bị dính vào góc hẹp.
+        // Thường nên nhỏ hơn Sprite.SCALED_SIZE / 2.0.
+        // Điều chỉnh giá trị này để tìm sự cân bằng.
+        double buffer =0.5;
+
+        // Tính toán tọa độ các điểm kiểm tra bên trong hộp va chạm dự kiến
+        // Kiểm tra các điểm nằm bên trong (không sát biên) hộp va chạm
+        double innerTop = checkPixelY + buffer;
+        double innerBottom = checkPixelY + entitySize - buffer;
+        double innerLeft = checkPixelX + buffer;
+        double innerRight = checkPixelX + entitySize - buffer;
+        double midX = checkPixelX + entitySize / 5.0; // Tâm X
+        double midY = checkPixelY + entitySize / 5.0; // Tâm Y
+
+        // Kiểm tra 9 điểm: 4 góc (với buffer), 4 điểm giữa cạnh (với buffer), 1 tâm
+        // Nếu bất kỳ điểm nào nằm trong ô vật cản (theo isObstacle() của lớp con), trả về true.
+        if (isObstacleAtPixel(innerLeft, innerTop) ||       // Top-Left
+                isObstacleAtPixel(innerRight, innerTop) ||      // Top-Right
+                isObstacleAtPixel(innerLeft, innerBottom) ||    // Bottom-Left
+                isObstacleAtPixel(innerRight, innerBottom) ||   // Bottom-Right
+                isObstacleAtPixel(midX, innerTop) ||            // Mid-Top
+                isObstacleAtPixel(midX, innerBottom) ||         // Mid-Bottom
+                isObstacleAtPixel(innerLeft, midY) ||           // Mid-Left
+                isObstacleAtPixel(innerRight, midY) ||          // Mid-Right
+                isObstacleAtPixel(midX, midY) // Center
+        ) {
+            return true; // Va chạm được phát hiện
+        }
+
+        return false; // Không có va chạm
+    }
+    // Helper kiểm tra xem một điểm pixel có nằm trong ô vật cản không
+    // Logic này chuyển tọa độ pixel sang lưới và gọi isObstacle()
+    private boolean isObstacleAtPixel(double px, double py) {
+        // Chuyển đổi tọa độ pixel sang tọa độ lưới bằng cách làm tròn xuống (floor)
+        int gx = (int) Math.floor(px / Sprite.SCALED_SIZE);
+        int gy = (int) Math.floor(py / Sprite.SCALED_SIZE);
+
+        // Kiểm tra biên bản đồ trước khi lấy Tile
+        if (map == null || gx < 0 || gx >= map.getCols() || gy < 0 || gy >= map.getRows()) {
+            return true; // Ngoài map là vật cản
+        }
+
+        // Gọi phương thức isObstacle() của lớp này (hoặc lớp con override)
+        // isObstacle sẽ kiểm tra Tile và Bomb...
+        return isObstacle(gx, gy);
+    }
+
+
+    // Cập nhật vị trí lưới dựa trên vị trí pixel (làm tròn để lấy ô gần nhất)
+    // Phương thức này được gọi ở cuối update() sau khi di chuyển pixel đã xảy ra.
+
+    public void updateGridPosition() {
+        // Cập nhật gridX, gridY từ x, y của Entity
+        this.gridX = (int) Math.round(this.x / Sprite.SCALED_SIZE);
+        this.gridY = (int) Math.round(this.y / Sprite.SCALED_SIZE);
+    }
+
+
+    // Cập nhật animation dựa trên hướng di chuyển mới
+    // Đã sửa lỗi sử dụng walkDownAnimation
+    protected void updateAnimationForDirection(Direction dir) {
+        Animation targetAnimation = null;
+        Direction animationDir = dir; // Hướng dùng để chọn animation
+
+        // Nếu hướng là NONE, dùng hướng cuối cùng không phải NONE để chọn animation đứng yên
+        if (dir == Direction.NONE) {
+            animationDir = lastNonNoneDirection;
+        } else {
+            // Nếu đang di chuyển theo hướng nào đó, cập nhật lastNonNoneDirection
+            lastNonNoneDirection = dir;
+        }
+
+        switch (animationDir) {
+            case LEFT:  targetAnimation = walkLeftAnimation; break;
+            case RIGHT: targetAnimation = walkRightAnimation; break;
+            case UP:
+            case DOWN:
+                // Enemy cơ bản không có animation UP/DOWN riêng
+                // Giữ animation ngang cuối cùng dựa trên lastNonNoneDirection
+                if (lastNonNoneDirection == Direction.LEFT) {
+                    targetAnimation = walkLeftAnimation;
+                } else if (lastNonNoneDirection == Direction.RIGHT) {
+                    targetAnimation = walkRightAnimation;
+                } else {
+                    // Fallback nếu lastNonNoneDirection vẫn là UP/DOWN (ví dụ mới spawn)
+                    targetAnimation = walkRightAnimation; // Mặc định
+                }
+                break;
+            case NONE:
+                // Trường hợp này xử lý khi lastNonNoneDirection vẫn là NONE (ví dụ ngay sau constructor setRandomDirection không tìm được hướng)
+                targetAnimation = walkRightAnimation; // Mặc định
+                break;
+        }
+
+        // Chỉ đổi animation nếu animation mới khác animation hiện tại và không null
+        if (targetAnimation != null && currentAnimation != targetAnimation) {
+            currentAnimation = targetAnimation;
+            // animationTimer = 0; // Không reset timer khi chuyển giữa các animation di chuyển/idle để chúng mượt mà
+        }
+        // Reset timer animation chỉ khi chết hoặc bắt đầu/kết thúc di chuyển nếu animation loop không mượt
+        // Logic này có thể cần tinh chỉnh tùy vào sprite sheet cụ thể
+
+    }
+
+
+    // --- Helper kiểm tra xem một ô lưới có phải là vật cản không ---
+    // Lớp con có thể override phương thức này để thay đổi loại vật cản
+    // Phương thức này được gọi bởi isObstacleAtPixel và checkMovementCollision
+    protected boolean isObstacle(int gX, int gY) {
+        // Kiểm tra Tile
+        Tile tile = map.getTile(gX, gY);
+        // Enemy cơ bản bị chặn bởi Wall và Brick
+        if (tile != null && (tile.getType() == TileType.WALL || tile.getType() == TileType.BRICK)) {
+            return true; // Tường hoặc Gạch là vật cản
+        }
+
+        // Kiểm tra Bomb (Enemy cơ bản bị chặn bởi Bomb)
+        if (gameManager != null && gameManager.isBombAtGrid(gX, gY)) {
+            return true; // Có Bom là vật cản
+        }
+
+        // TODO: Kiểm tra Enemy khác nếu cần (thường Enemy có thể đi xuyên nhau)
+
+        return false; // Không phải vật cản
+    }
+
+
+    // --- Phương thức để lớp con định nghĩa logic chọn hướng đi ---
+    // Phương thức này sẽ được gọi bởi update() và sẽ đặt currentDirection + isMoving
+    protected abstract void calculateNextMove();
+
+    /**
+     * Chọn một hướng ngẫu nhiên khả thi (mà Enemy có thể bắt đầu đi vào).
+     * Sử dụng canMoveTowards() để kiểm tra.
+     * Đặt currentDirection và isMoving.
+     * Được gọi bởi handleBlockedMovement hoặc calculateNextMove của lớp con.
+     */
+    protected void setRandomDirection() {
+        List<Direction> directions = new ArrayList<>(Arrays.asList(Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT));
+        Collections.shuffle(directions); // Xáo trộn ngẫu nhiên
+
+        // Thử từng hướng đã xáo trộn
+        for (Direction dir : directions) {
+            if (canMoveTowards(dir)) { // Chỉ chọn hướng có thể bắt đầu đi được (sử dụng canMoveTowards đã cải tiến)
+                currentDirection = dir;
+                isMoving = true;
+                // Cập nhật lastNonNoneDirection và animation
+                if (dir != Direction.NONE) lastNonNoneDirection = dir;
+                updateAnimationForDirection(currentDirection); // Cập nhật animation
+                // Reset bộ đếm kẹt khi chủ động đổi hướng
+                consecutiveBlocks = 0;
+                lastAttemptedDirection = Direction.NONE;
+                //System.out.println("ENEMY DEBUG: setRandomDirection() chose: " + currentDirection); // Log
+                return; // Tìm thấy hướng mới, thoát
+            }
+        }
+        // Không tìm thấy hướng nào khả thi để bắt đầu đi từ vị trí hiện tại
+        currentDirection = Direction.NONE;
+        isMoving = false;
+        updateAnimationForDirection(Direction.NONE); // Chuyển sang animation đứng yên
+        //System.out.println("ENEMY DEBUG: setRandomDirection() failed to find a walkable direction."); // Log
+        consecutiveBlocks = 0; // Reset bộ đếm kẹt ngay cả khi không tìm được hướng
+        lastAttemptedDirection = Direction.NONE;
+    }
+
+
+    // --- Phương thức render chung ---
+    @Override // Override từ Entity
+    public void render(GraphicsContext gc) {
+        // Không vẽ nếu không còn active (đã bị xóa khỏi game)
+        if (!isActive()) return; // Sử dụng cờ active từ Entity
+
+        // Nếu đang chết và animation chết đã xong, không vẽ nữa (Bombeman sẽ xóa nó khỏi list)
+        if (!isAlive && (deadAnimation == null || dyingTimer >= TIME_TO_DIE)) {
+            setActive(false); // <-- Đặt active = false khi animation chết xong (Bomberman sẽ dùng cờ này để xóa)
+            return;
+        }
+
+
+        if (gc == null) return;
+
+        Image currentImage = null;
+        // Nếu đang trong quá trình chết, ưu tiên animation chết
+        if (!isAlive && deadAnimation != null) {
+            // Sử dụng timer animation chung để lấy frame
+            Sprite currentSpriteFrame = deadAnimation.getFrame(animationTimer);
+            if (currentSpriteFrame != null) {
+                currentImage = currentSpriteFrame.getFxImage();
+            }
+            // Đảm bảo currentAnimation là animation chết khi đang chết
+            currentAnimation = deadAnimation;
+        } else {
+            // Nếu còn sống, sử dụng animation di chuyển/đứng yên hiện tại
+            if (currentAnimation != null) {
+                Sprite currentSpriteFrame = currentAnimation.getFrame(animationTimer); // Dùng timer animation chung
+                if (currentSpriteFrame != null) {
+                    currentImage = currentSpriteFrame.getFxImage();
+                }
+            }
+        }
+
+
+        // Fallback nếu không có animation hoặc frame lỗi
+        if (currentImage == null) {
+            if (isAlive) {
+                currentImage = Sprite.balloom_left1.getFxImage(); // Ảnh mặc định khi sống (Balloom)
+            } else {
+                currentImage = Sprite.mob_dead1.getFxImage(); // Ảnh mặc định khi chết
+            }
+        }
+
+        if (currentImage != null) {
+            // Vẽ với offset Y của UI panel (Sẽ sửa sau khi refactor rendering)
+            // Tạm thời giữ nguyên để hiển thị đúng
+            gc.drawImage(currentImage, x, y + Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE); // Sử dụng x, y từ Entity
+        }
+    }
+
+    // --- Phương thức xử lý khi Enemy chết ---
+    public void die() {
+        if (!isAlive) return; // Chỉ chết một lần
+
+        System.out.println("Enemy died at (" + gridX + ", " + gridY + "). Score: " + scoreValue);
+        isAlive = false; // Đánh dấu là không còn sống game play
+        isMoving = false; // Dừng di chuyển ngay lập tức
+        currentDirection = Direction.NONE; // Reset hướng
+        dyingTimer = 0; // Bắt đầu đếm thời gian chết
+        animationTimer = 0; // Reset timer animation để bắt đầu animation chết từ đầu
+        currentAnimation = deadAnimation; // Chuyển sang animation chết (Nếu deadAnimation là null, render sẽ dùng fallback)
+
+        // Thông báo cho gameManager để cộng điểm
+        if (gameManager != null) {
+            gameManager.addScore(this.scoreValue);
+            // gameManager.enemyDied(this); // Có thể cần phương thức này để quản lý portal
+        }
+        // TODO: Phát âm thanh Enemy chết
+    }
+
+    // --- Getters ---
+    public boolean isAlive() { return isAlive; } // Getter cho trạng thái sống game play
+
+    public double getDyingTimer() { return dyingTimer; }
+    public double getTimeToDie() { return TIME_TO_DIE; } //  getter này để Bomberman xóa Entity
+
+
+    public boolean isMoving() { return isMoving; } // Getter cho isMoving
+    public Direction getCurrentDirection() { return currentDirection; } // Getter cho currentDirection
+
+    // Getter cho cờ active từ Entity
+    // public boolean isActive() { return active; } // Đã có trong Entity
+
+}package com.example.bomberman;
+
+ import com.example.bomberman.Map.MapData;
+ import com.example.bomberman.Map.Tile;
+ import com.example.bomberman.controller.*;
+ import com.example.bomberman.entities.*;
+ import com.example.bomberman.entities.Items.*;
+ import com.example.bomberman.graphics.Animation;
+ import com.example.bomberman.graphics.Particle;
+ import com.example.bomberman.graphics.Sprite;
+ import com.example.bomberman.Input.InputHandler;
+ import javafx.animation.AnimationTimer;
+ import javafx.application.Application;
+ import javafx.scene.Group;
+ import javafx.scene.Scene;
+ import javafx.scene.canvas.Canvas;
+ import javafx.scene.canvas.GraphicsContext;
+ import javafx.scene.image.Image;
+ import javafx.scene.input.KeyCode;
+ import javafx.scene.paint.Color;
+ import javafx.scene.text.Font;
+ import javafx.scene.text.Text;
+ import javafx.stage.Stage;
+
+ import java.io.IOException;
+ import java.io.InputStream;
+ import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Random;
+ import javafx.scene.media.*;
+
+
+ public class Bomberman extends Application {
+
+     // =========================================================================
+     // Constants and Static Fields (Giữ nguyên)
+     // =========================================================================
+     public static final int UI_PANEL_HEIGHT = 32;
+     private static final double LEVEL_DURATION_SECONDS = 200.0; // Giá trị gốc
+     private final int MAX_LEVEL = 5;
+
+
+     // =========================================================================
+     // Core Components & Game State
+     // =========================================================================
+     private Stage primaryStage;
+     private Canvas canvas;
+     private GraphicsContext gc;
+     private InputHandler inputHandler;
+     private Random random = new Random();
+     private GameState currentState = GameState.MENU; // Enum vẫn dùng để quản lý state
+     private SceneController currentController;     // Controller hiện tại
+
+     // =========================================================================
+     // Game Data (Giữ lại hoặc chuyển vào GameContext)
+     // =========================================================================
+     private com.example.bomberman.Map.Map gameMap;
+     private Player player;
+     private final List<Bomb> bombs = new ArrayList<>();
+     private final List<Enemy> enemies = new ArrayList<>(); // TODO: Enemy
+     private final List<Item> items = new ArrayList<>();
+     private final List<Flame> flames = new ArrayList<>();
+     private final List<TemporaryAnimation> temporaryAnimations = new ArrayList<>();
+     private List<Particle> particles = new ArrayList<>();
+     private java.util.Map<String, Character> hiddenItemsData;
+     private int currentLevel = 1;
+     private int score = 0;
+     // private int lives = 3; // Lives được quản lý bởi Player
+     private double levelTimeRemaining;
+     private boolean portalActivated = false;
+     private int portalGridX = -1;
+     private int portalGridY = -1;
+
+     // =========================================================================
+     // UI & Rendering Resources (Giữ lại)
+     // =========================================================================
+     private Font uiFont;
+     private Font gameOverFont;
+     private Image menuBackground;
+     private Image handCursorImage;
+     private Image lastScreenSnapshot = null;
+     private Animation playerDeadAnimation;
+     private boolean isMusicOn = true; // Trạng thái nhạc
+     // =========================================================================
+     // Sound
+     // =========================================================================
+     private MediaPlayer backgroundMusicPlayer;
+
+     // AudioClips for sound effects (đặt tên theo chức năng hoặc file của bạn)
+     private AudioClip menuMoveSound;
+     private AudioClip menuSelectSound;
+     private AudioClip bombPlacedSound; // Âm thanh đặt bom (giả định tên file)
+     private AudioClip explosionSound; // Âm thanh nổ bom
+     private AudioClip playerDeadSound; // Âm thanh Player chết
+     private AudioClip itemPickupSound; // Âm thanh nhặt Item
+     private AudioClip  playerWalkSound; // Âm thanh bước chân (sẽ xử lý phức tạp hơn)
+     private AudioClip gameOverSound;// am thanh game over
+     private boolean isPlayerWalkSoundPlaying = false;
+
+     // =========================================================================
+     // Application Lifecycle & Initialization
+     // =========================================================================
+     @Override
+     public void start(Stage primaryStage) {
+         this.primaryStage = primaryStage;
+         primaryStage.setTitle("Bomberman Game");
+         primaryStage.setResizable(false);
+
+         loadResources(); // Load fonts, images
+         canvas = new Canvas(1, 1);
+         gc = canvas.getGraphicsContext2D();
+
+         Group root = new Group(canvas);
+         Scene scene = new Scene(root);
+         primaryStage.setScene(scene);
+         boolean initialLoadSuccess = loadLevel(currentLevel);
+         if (!initialLoadSuccess) {
+             System.err.println("FATAL: Initial level load failed. Cannot start game.");
+             // Có thể hiển thị Alert lỗi ở đây
+             return; // Không thể tiếp tục nếu level đầu lỗi
+         }
+         inputHandler = new InputHandler(scene, player, this);
+         primaryStage.show();
+         // --- Khởi tạo trạng thái ban đầu ---
+         switchController(GameState.MENU); // Bắt đầu ở Menu
+         playBackgroundMusic();
+         startGameLoop(); // Bắt đầu vòng lặp game
+     }
+
+     public static void main(String[] args) {
+         launch(args);
+     }
+
+     // =========================================================================
+     // Resource Loading (Giữ nguyên)
+     // =========================================================================
+     private void loadResources() {
+         // ... (Code load font, images giữ nguyên như gốc) ...
+         // Load Font
+         try (InputStream fontStream = getClass().getResourceAsStream("/Font/PressStart2P-Regular.ttf")) {
+             if (fontStream != null) {
+                 this.uiFont = Font.loadFont(fontStream, 16);
+                 if (this.uiFont == null) {
+                     System.err.println("Font.loadFont returned null. Using default Arial.");
+                     this.uiFont = Font.font("Arial", 16);
+                 } else {
+                     System.out.println("Custom font loaded: " + this.uiFont.getName());
+                     this.gameOverFont = Font.font(this.uiFont.getFamily(), 72);
+                     System.out.println("Game Over font created: " + this.gameOverFont.getName() + " size " + this.gameOverFont.getSize());
+                 }
+             } else {
+                 System.err.println("Could not find font resource stream. Using default Arial.");
+                 this.uiFont = Font.font("Arial", 16);
+             }
+         } catch (Exception e) {
+             System.err.println("Error loading custom font: " + e.getMessage());
+             e.printStackTrace();
+             this.uiFont = Font.font("Arial", 16);
+             this.gameOverFont = Font.font("Arial", 72);
+         }
+         if (this.gameOverFont == null) {
+             this.gameOverFont = Font.font("Arial", 72);
+         }
+
+         // Load Menu Background
+         try (InputStream bgStream = getClass().getResourceAsStream("/textures/nền.png")) {
+             if (bgStream != null) {
+                 menuBackground = new Image(bgStream);
+                 System.out.println("Menu background loaded.");
+             } else {
+                 System.err.println("Could not find menu background resource stream.");
+             }
+         } catch (Exception e) {
+             System.err.println("Error loading menu background: " + e.getMessage());
+             e.printStackTrace();
+         }
+
+         // Load Hand Cursor
+         try (InputStream hcStream = getClass().getResourceAsStream("/textures/contro2.png")) {
+             if (hcStream != null) {
+                 handCursorImage = new Image(hcStream);
+                 System.out.println("Hand cursor loaded.");
+             } else {
+                 System.err.println("Could not find hand cursor resource stream.");
+             }
+         } catch (IOException e) {
+             System.err.println("Error loading hand cursor: " + e.getMessage());
+             e.printStackTrace();
+         }
+         try {
+             // Background Music
+             // Đường dẫn tài nguyên phải bắt đầu bằng '/' và là đường dẫn trong thư mục res/Sound
+             java.net.URL bgMusicUrl = getClass().getResource("/Sound/BackGroundMusic.mp3");
+             if (bgMusicUrl != null) {
+                 javafx.scene.media.Media backgroundMusic = new javafx.scene.media.Media(bgMusicUrl.toExternalForm());
+                 backgroundMusicPlayer = new javafx.scene.media.MediaPlayer(backgroundMusic);
+                 backgroundMusicPlayer.setCycleCount(javafx.scene.media.MediaPlayer.INDEFINITE); // Lặp vô hạn
+                 backgroundMusicPlayer.setVolume(0.3); // Điều chỉnh âm lượng (0.0 đến 1.0)
+                 System.out.println("Background music loaded.");
+             } else {
+                 System.err.println("Could not find background music resource: /Sound/BackGroundMusic.mp3");
+             }
+
+             // Sound Effects (AudioClip)
+             // Sử dụng một phương thức helper để tải AudioClip an toàn hơn
+             menuMoveSound = loadAudioClip("/Sound/DichuyencontroMenu.mp3", "Menu Move");
+             menuSelectSound = loadAudioClip("/Sound/SelectLuaChonMenu.mp3", "Menu Select");
+             // Bạn cần kiểm tra tên file âm thanh thực tế của mình và cập nhật đường dẫn/tên biến ở đây
+             // Giả định các tên file sau tồn tại hoặc bạn có thể thay đổi chúng:
+             bombPlacedSound = loadAudioClip("/Sound/BombPlaced.mp3", "Bomb Placed"); // Giả định tên file
+             playerDeadSound = loadAudioClip("/Sound/PlayerDead.mp3", "Player Dead"); // Sử dụng tên file của bạn
+             itemPickupSound = loadAudioClip("/Sound/PickUpItem.mp3", "Item Pickup"); // Sử dụng tên file của bạn
+             playerWalkSound = loadAudioClip("/Sound/amthanhdibo.mp3", "Player Walk"); // Sử dụng tên file của bạn
+             gameOverSound = loadAudioClip("/Sound/GameOver.mp3", "Game Over"); // Sử dụng tên file của bạn
+             explosionSound = loadAudioClip("/Sound/amthanhbomno.mp3", "Bomb Explosion");
+             bombPlacedSound = loadAudioClip("/Sound/placebomb.mp3", "Bomb Placed");
+
+         } catch (Exception e) {
+             System.err.println("Error loading sound resources: " + e.getMessage());
+             e.printStackTrace();
+             // Tiếp tục chạy game mà không có âm thanh
+         }
+
+         // Load Player Dead Animation Sprites
+         this.playerDeadAnimation = new Animation(1.0/3.0, false, Sprite.player_dead1, Sprite.player_dead2, Sprite.player_dead3); // Thời gian frame hợp lý hơn
+     }
+     private AudioClip loadAudioClip(String resourcePath, String debugName) {
+         try {
+             java.net.URL resourceUrl = getClass().getResource(resourcePath);
+             if (resourceUrl != null) {
+                 javafx.scene.media.AudioClip clip = new javafx.scene.media.AudioClip(resourceUrl.toExternalForm());
+                 System.out.println(debugName + " sound loaded.");
+                 return clip;
+             } else {
+                 System.err.println("Could not find " + debugName + " sound resource: " + resourcePath);
+                 return null; // Trả về null nếu không tìm thấy
+             }
+         } catch (Exception e) {
+             System.err.println("Error loading " + debugName + " sound: " + e.getMessage());
+             e.printStackTrace();
+             return null; // Trả về null nếu có lỗi khác
+         }
+     }
+     public void playBackgroundMusic() {
+         if (backgroundMusicPlayer != null && isMusicOn) {
+             // Đảm bảo dừng nhạc nền cũ trước khi phát lại nếu cần
+             // backgroundMusicPlayer.stop(); // Tùy chọn, nếu muốn nhạc luôn bắt đầu từ đầu
+             backgroundMusicPlayer.play();
+             System.out.println("Playing background music.");
+         }
+     }
+
+     /**
+      * Dừng phát nhạc nền.
+      */
+     public void stopBackgroundMusic() {
+         if (backgroundMusicPlayer != null) {
+             backgroundMusicPlayer.stop();
+             System.out.println("Stopping background music.");
+         }
+     }
+     /**
+      * Điều chỉnh trạng thái bật/tắt âm thanh toàn cục.
+      */
+     public void setMusicOn(boolean on) {
+         this.isMusicOn = on;
+         if (backgroundMusicPlayer != null) {
+             backgroundMusicPlayer.setMute(!on); // Bật/tắt tiếng MediaPlayer
+             // MediaPlayer có thể tạm dừng/phát tiếp, hoặc dừng hẳn. Mute đơn giản hơn.
+             // Nếu bạn dùng stop/play, cần logic phức tạp hơn khi chuyển state/tạm dừng game.
+         }
+
+         // Quản lý âm thanh bước chân (nếu đang phát)
+         // Nếu nhạc bị tắt, dừng âm thanh bước chân ngay lập tức
+         if (!on && isPlayerWalkSoundPlaying) {
+             stopPlayerWalkSound();
+         }
+         // Nếu nhạc được bật VÀ Player đang di chuyển VÀ âm thanh bước chân chưa phát, bắt đầu phát lại
+         // Logic này sẽ được kích hoạt lại khi Player bắt đầu di chuyển hoặc khi Player đang di chuyển
+         // và bạn bật nhạc lại từ menu.
+         if (on && player != null && player.isMoving() && !isPlayerWalkSoundPlaying) {
+             startPlayerWalkSound(); // Cần phương thức này bên dưới
+         }
+
+         System.out.println("Music set to: " + isMusicOn);
+     }
+     private void playSound(javafx.scene.media.AudioClip clip) {
+         if (clip != null && isMusicOn) {
+             clip.play();
+         }
+     }
+
+     // Các phương thức cụ thể để phát từng loại âm thanh hiệu ứng
+     public void playMenuMoveSound() { playSound(menuMoveSound); }
+     public void playMenuSelectSound() { playSound(menuSelectSound); }
+     public void playExplosionSound() { playSound(explosionSound); }
+     public void playPlayerDeadSound() { playSound(playerDeadSound); }
+     public void playItemPickupSound() { playSound(itemPickupSound); }
+     public void playGameOverSound() { playSound(gameOverSound); }
+     public void playBombPlacedSound() {playSound(bombPlacedSound);}
+     public void playPlayerWalkSound() {playSound(playerWalkSound); }
+     /**
+      * Bắt đầu phát âm thanh bước chân (lặp).
+      * Được gọi từ Player khi bắt đầu di chuyển.
+      */
+     public void startPlayerWalkSound() {
+        // System.out.println("Attempting to start player walk sound...");
+        // System.out.println("  - playerWalkSound null? " + (playerWalkSound == null));
+        // System.out.println("  - isMusicOn? " + isMusicOn);
+        //   System.out.println("  - isPlayerWalkSoundPlaying? " + isPlayerWalkSoundPlaying);
+
+         if (playerWalkSound != null && isMusicOn && !isPlayerWalkSoundPlaying) {
+             playerWalkSound.setCycleCount(AudioClip.INDEFINITE);
+             playerWalkSound.setVolume(2.0); // Đảm bảo âm lượng không phải là 0
+             playerWalkSound.play(); // Gọi play trực tiếp
+             isPlayerWalkSoundPlaying = true;
+             System.out.println("SUCCESS: Starting player walk sound loop.");
+         } else {
+             System.out.println("INFO: Conditions not met to start player walk sound.");
+             if (playerWalkSound == null) System.out.println("  Reason: playerWalkSound is null.");
+             if (!isMusicOn) System.out.println("  Reason: isMusicOn is false.");
+             if (isPlayerWalkSoundPlaying) System.out.println("  Reason: isPlayerWalkSoundPlaying is already true.");
+         }
+     }
+     /**
+      * Dừng phát âm thanh bước chân.
+      * Được gọi từ Player khi dừng di chuyển.
+      */
+     public void stopPlayerWalkSound() {
+         // Chỉ dừng nếu clip tồn tại VÀ âm thanh bước chân đang phát
+         if (playerWalkSound != null && isPlayerWalkSoundPlaying) {
+             System.out.println("DEBUG: Calling playerWalkSound.stop()");
+             playerWalkSound.stop(); // Dừng lần phát cuối cùng (trong trường hợp lặp là toàn bộ loop)
+             isPlayerWalkSoundPlaying = false;
+             System.out.println("Stopping player walk sound loop.");
+         }
+     }
+     // =========================================================================
+     // Game Loop (Sửa đổi để ủy quyền)
+     // =========================================================================
+     private void startGameLoop() {
+         AnimationTimer timer = new AnimationTimer() {
+             private long lastUpdateTime = 0;
+
+             @Override
+             public void handle(long now) {
+                 if (lastUpdateTime == 0) {
+                     lastUpdateTime = now;
+                     return;
+                 }
+                 double deltaTime = (now - lastUpdateTime) / 1_000_000_000.0;
+                 lastUpdateTime = now;
+
+                 // --- Ủy quyền cho Controller hiện tại ---
+                 if (currentController != null) {
+                     currentController.update(deltaTime);
+
+                     // Xóa màn hình trước khi vẽ
+                     if (gc != null && canvas != null) {
+                         gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+                         // Vẽ thanh UI nền (nếu có) trước khi controller vẽ
+                         if (UI_PANEL_HEIGHT > 0) {
+                             gc.setFill(Color.rgb(40, 40, 40));
+                             gc.fillRect(0, 0, canvas.getWidth(), UI_PANEL_HEIGHT);
+                         }
+                         // Controller vẽ nội dung chính
+                         currentController.render(gc);
+                     }
+                 }
+             }
+         };
+         timer.start();
+     }
+
+     // =========================================================================
+     // State Management (QUAN TRỌNG)
+     // =========================================================================
+     public void switchController(GameState newState) {
+         System.out.println("Switching state from " + currentState + " to: " + newState);
+         // Dừng nhạc nền khi vào các trạng thái tạm dừng hoặc kết thúc (có âm thanh riêng)
+
+         if (currentState == GameState.PLAYING && (newState == GameState.PAUSED || newState == GameState.GAME_OVER_TRANSITION)) {
+             // Tạm dừng nhạc nền khi vào PAUSED hoặc chuẩn bị Game Over
+             stopBackgroundMusic(); // Hoặc bạn có thể chỉ tạm dừng bằng player.pause()
+         }
+         // (Optional) Gọi onExitState của controller cũ nếu có
+         // if (currentController != null && currentController instanceof YourSpecificController) {
+         //     ((YourSpecificController) currentController).onExitState();
+         // }
+
+         this.currentState = newState; // Cập nhật enum state
+
+         // Tạo controller mới dựa trên newState
+         switch (newState) {
+             case MENU:
+                 this.currentController = new MenuController(this);
+                 playBackgroundMusic();
+                 break;
+             case PLAYING:
+                 // Playing state chỉ nên được vào sau khi level đã load thành công
+                 // Việc chuyển sang PLAYING sẽ do requestLoadLevelAndSwitchState xử lý
+                 // Nếu gọi trực tiếp switchController(PLAYING) ở đây mà chưa load level sẽ lỗi
+                 playBackgroundMusic();
+                 if (this.player != null && this.gameMap != null) {
+                     this.currentController = new PlayingController(this);
+                 } else {
+                     switchController(GameState.MENU);
+                     return;
+                 }
+                 break;
+             case PAUSED:
+                 // Chỉ vào Pause từ Playing
+                 if (currentController instanceof PlayingController) {
+                     this.currentController = new PauseController(this);
+                 } else {
+                     System.err.println("Cannot switch to PAUSED state from " + currentState);
+                     return; // Không chuyển state
+                 }
+                 break;
+             case GAME_OVER_TRANSITION:
+                 // Thường vào từ Playing
+                 if (currentController instanceof PlayingController) {
+                     this.currentController = new GameOverTransitionController(this);
+                 } else {
+                     System.err.println("Cannot switch to GAME_OVER_TRANSITION state from " + currentState);
+                     return; // Không chuyển state
+                 }
+                 break;
+             case GAME_OVER:
+                 // Thường vào từ GameOverTransition
+                 if (currentController instanceof GameOverTransitionController) {
+                     this.currentController = new GameOverController(this);
+                     // Phát âm thanh Game Over khi vào trạng thái này
+                     playGameOverSound();
+                 } else {
+                     System.err.println("Cannot switch to GAME_OVER state from " + currentState);
+                     // Có thể fallback về Menu hoặc trạng thái an toàn khác
+                     switchController(GameState.MENU);
+                     return; // Không chuyển state
+                 }
+                 break;
+             default:
+                 System.err.println("Unknown or unsupported GameState: " + newState);
+                 // Fallback về Menu
+                 switchController(GameState.MENU);
+                 break;
+         }
+
+     }
+
+     /**
+      * Phương thức trung gian để xử lý yêu cầu load level và chuyển state.
+      * Đảm bảo level được load thành công trước khi thực sự chuyển sang state mong muốn.
+      */
+     public void requestLoadLevelAndSwitchState(int levelNumber, GameState targetState) {
+         System.out.println("Requesting load level " + levelNumber + " and switch to " + targetState);
+         boolean loadSuccess = loadLevel(levelNumber); // loadLevel trả về true/false
+
+         if (loadSuccess) {
+             // Nếu load thành công, chuyển sang state mong muốn
+             switchController(targetState);
+         } else {
+             // Nếu load thất bại, quay về Menu (hoặc hiển thị lỗi)
+             System.err.println("Failed to load level " + levelNumber + ". Returning to MENU.");
+             switchController(GameState.MENU);
+         }
+     }
+
+
+     // =========================================================================
+     // Level Management (Sửa đổi để trả về boolean)
+     // =========================================================================
+     private boolean loadLevel(int levelNumber) { // Sửa đổi để trả về boolean
+         try {
+             System.out.println("Loading level " + levelNumber + "...");
+             this.currentLevel = levelNumber;
+
+             // --- Reset state trước khi load ---
+             this.score = 0; // Reset score khi load level mới (theo code gốc)
+             this.levelTimeRemaining = LEVEL_DURATION_SECONDS;
+             this.portalActivated = false;
+             this.portalGridX = -1;
+             this.portalGridY = -1;
+             bombs.clear();
+             flames.clear();
+             enemies.clear(); // TODO
+             items.clear();
+             temporaryAnimations.clear();
+             particles.clear();
+             player = null; // Quan trọng: Player sẽ được tạo lại
+             hiddenItemsData = null;
+             lastScreenSnapshot = null; // Xóa snapshot cũ
+             System.out.println("Level state reset.");
+
+             // --- Load Map Data ---
+             MapData mapData = new MapData(levelNumber);
+             gameMap = new com.example.bomberman.Map.Map(mapData, this);
+             hiddenItemsData = mapData.getHiddenItems();
+
+             // --- Cập nhật Canvas ---
+             int canvasWidth = mapData.getCols() * Sprite.SCALED_SIZE;
+             int canvasHeight = mapData.getRows() * Sprite.SCALED_SIZE + UI_PANEL_HEIGHT;
+             if (canvas == null) { // Tạo mới nếu chưa có
+                 canvas = new Canvas(canvasWidth, canvasHeight);
+                 gc = canvas.getGraphicsContext2D();
+                 // Cần cập nhật Group và Scene nếu canvas được tạo mới sau khi stage đã show()?
+                 // Cách tốt hơn là tạo canvas ở start() và chỉ resize ở đây.
+             } else {
+                 canvas.setWidth(canvasWidth);
+                 canvas.setHeight(canvasHeight);
+             }
+
+             // --- Tạo Entities ---
+             initializeEntitiesFromMap(mapData); // Tạo player, enemies...
+
+             // --- Kiểm tra và cập nhật InputHandler ---
+             if (player == null) {
+                 throw new IllegalStateException("Player not found in map data for level " + levelNumber);
+             }
+             if (inputHandler != null) {
+                 inputHandler.setPlayer(player); // Cập nhật Player cho InputHandler
+             } else {
+                 System.err.println("InputHandler is null during loadLevel!");
+                 // Có thể cần tạo InputHandler ở đây nếu nó chưa được tạo ở start()
+             }
+
+             System.out.println("Level " + levelNumber + " loaded successfully.");
+             return true; // Load thành công
+
+         } catch (Exception e) {
+             System.err.println("Error loading level " + levelNumber + ": " + e.getMessage());
+             e.printStackTrace();
+             // Reset các thành phần quan trọng về null để tránh lỗi tiếp theo
+             canvas = null; // Hoặc đặt lại kích thước mặc định?
+             gc = null;
+             player = null;
+             gameMap = null;
+             hiddenItemsData = null;
+             // Không chuyển state ở đây, hàm gọi sẽ xử lý (ví dụ quay về Menu)
+             return false; // Load thất bại
+         }
+     }
+
+     // --- initializeEntitiesFromMap (Giữ nguyên logic gốc) ---
+     private void initializeEntitiesFromMap(MapData mapData) {
+         char[][] charMap = mapData.getMap();
+         for (int i = 0; i < mapData.getRows(); i++) {
+             for (int j = 0; j < mapData.getCols(); j++) {
+                 char mapChar = charMap[i][j];
+                 switch (mapChar) {
+                     case 'p':
+                         if (player == null) {
+                             player = new Player(j, i, gameMap, this);
+                             if (gameMap != null) { // Đặt tile dưới player
+                                 gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                             }
+                         } // Bỏ qua nếu player đã tồn tại
+                         break;
+                     case '1': // Balloom
+                         enemies.add(new Balloom(j, i, gameMap,this));
+                         if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                         System.out.println("Balloom placeholder at grid (" + j + ", " + i + ")");
+                         break;
+                     case '2':
+                         enemies.add(new Oneal(j, i, gameMap, this)); // Tạo Oneal
+                         if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                         System.out.println("Oneal created at grid (" + j + ", " + i + ")");
+                         break;
+                     case '3':
+                         enemies.add(new Doll(j,i,gameMap,this));
+                         if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                         break;
+                     case '4':
+                         enemies.add(new Ghost(j,i,gameMap,this));
+                         if (gameMap != null) gameMap.setTile(j, i, Tile.createTileFromChar(j, i, ' '));
+                         break;
+                     case 'x': // Portal
+                         if (portalGridX == -1) { portalGridX = j; portalGridY = i; }
+                         break;
+                     // ... (Các case khác như gốc) ...
+                     case 'b': case 'f': case 's': case 'l': case 'a': break; // Chỉ là tile ban đầu
+                     case '#': case '*': case ' ': break; // Tile tĩnh
+                     default: System.err.println("Warning: Unknown map char '" + mapChar + "'"); break;
+                 }
+             }
+         }
+         // Đảm bảo Player được tạo
+         if (player == null) {
+             throw new IllegalStateException("Player could not be created from map data!");
+         }
+     }
+
+     // =========================================================================
+     // Entity Update Methods (Giữ nguyên, sẽ được gọi bởi PlayingController)
+     // =========================================================================
+     public void updateBombs(double deltaTime) { /* ... Code gốc ... */
+         Iterator<Bomb> iterator = bombs.iterator();
+         while (iterator.hasNext()) {
+             Bomb bomb = iterator.next();
+             bomb.update(deltaTime);
+             if (!bomb.isActive()) {
+                 List<Flame> newFlames = bomb.getGeneratedFlames();
+                 if (newFlames != null && !newFlames.isEmpty()) {
+                     addFlames(newFlames);
+                 }
+                 iterator.remove();
+                 Object owner = bomb.getOwner();
+                 if (owner instanceof Player) {
+                     ((Player) owner).increaseBombCount();
+                 }
+             }
+         }
+     }
+     public void updateFlames(double deltaTime) { /* ... Code gốc ... */
+         Iterator<Flame> iterator = flames.iterator();
+         while (iterator.hasNext()) {
+             Flame flame = iterator.next();
+             flame.update(deltaTime);
+             if (!flame.isActive()) {
+                 iterator.remove();
+             }
+         }
+     }
+     public void updateItems(double deltaTime) { /* ... Code gốc ... */
+         Iterator<Item> iterator = items.iterator();
+         while (iterator.hasNext()) {
+             Item item = iterator.next();
+             item.update(deltaTime);
+             if (!item.isActive()) {
+                 iterator.remove();
+             }
+         }
+     }
+     public void updateTemporaryAnimations(double deltaTime) { /* ... Code gốc ... */
+         Iterator<TemporaryAnimation> iterator = temporaryAnimations.iterator();
+         while (iterator.hasNext()) {
+             TemporaryAnimation anim = iterator.next();
+             anim.update(deltaTime);
+             if (!anim.isActive()) {
+                 handleAnimationFinished(anim); // Gọi hàm xử lý item spawn
+                 iterator.remove();
+             }
+         }
+     }
+     public void updateEnemies(double deltaTime) {
+         Iterator<Enemy> iterator = enemies.iterator();
+         while (iterator.hasNext()) {
+             Enemy enemy = iterator.next();
+             enemy.update(deltaTime);
+             // Xóa Enemy nếu animation chết đã hoàn thành
+             if (!enemy.isAlive() && enemy.getDyingTimer() >= enemy.getTimeToDie()) {
+                 iterator.remove();
+                 System.out.println("Removed dead enemy from list.");
+             }
+         }
+     }
+
+     // =========================================================================
+     // Game Logic & Callbacks (Giữ nguyên)
+     // =========================================================================
+     public void addBomb(Bomb bomb) { if (bomb != null) bombs.add(bomb); }
+     public void addFlames(List<Flame> newFlames) { if (newFlames != null) flames.addAll(newFlames); }
+     public void addScore(int points) { if (points > 0) this.score += points; /* Tạm bỏ log */ }
+
+     public void brickDestroyed(int gridX, int gridY) {
+         addScore(10);
+         double animationDuration = 0.5;
+         double frameDuration = animationDuration / 3;
+         Animation brickExplosionAnim = new Animation(frameDuration, false,
+                 Sprite.brick_exploded, Sprite.brick_exploded1, Sprite.brick_exploded2);
+         TemporaryAnimation brickAnim = new TemporaryAnimation(gridX, gridY, brickExplosionAnim);
+         temporaryAnimations.add(brickAnim);
+     }
+
+     private void handleAnimationFinished(TemporaryAnimation finishedAnimation) { // Được gọi từ updateTemporaryAnimations
+         int gridX = finishedAnimation.getGridX();
+         int gridY = finishedAnimation.getGridY();
+         if (gameMap != null) {
+             gameMap.setTile(gridX, gridY, Tile.createTileFromChar(gridX, gridY, ' '));
+         }
+         char itemToSpawnChar = '\0';
+         String itemKey = gridX + "," + gridY;
+         if (hiddenItemsData != null && hiddenItemsData.containsKey(itemKey)) {
+             itemToSpawnChar = hiddenItemsData.get(itemKey);
+             hiddenItemsData.remove(itemKey);
+         } else {
+             double randomDropProbability = 0.1; // Giá trị gốc
+             if (random.nextDouble() < randomDropProbability) {
+                 char[] possibleRandomItems = {'b', 'f', 's', 'l', 'a'};
+                 itemToSpawnChar = possibleRandomItems[random.nextInt(possibleRandomItems.length)];
+             }
+         }
+         if (itemToSpawnChar != '\0') {
+             spawnItemAt(gridX, gridY, itemToSpawnChar);
+         }
+     }
+
+     public void spawnItemAt(int gridX, int gridY, char itemTypeChar) { /* ... Code gốc ... */
+         Item newItem = null;
+         switch (itemTypeChar) {
+             case 'b': newItem = new BombItem(gridX, gridY); break;
+             case 'f': newItem = new FlameItem(gridX, gridY); break;
+             case 's': newItem = new SpeedItem(gridX, gridY); break;
+             case 'l': newItem = new LifeItem(gridX, gridY); break;
+             case 'a': newItem = new KickBombItem(gridX, gridY); break;
+             default: System.err.println("Warning: Unknown item type '" + itemTypeChar + "'"); break;
+         }
+         if (newItem != null) {
+             items.add(newItem);
+             // System.out.println("Spawned Item: " + newItem.getClass().getSimpleName());
+         }
+     }
+
+     // =========================================================================
+     // Collision & Interaction Handling (Giữ nguyên, gọi bởi PlayingController)
+     // =========================================================================
+     public void handleKickBombTrigger() { /* ... Code gốc ... */
+         if (player != null && player.kickableBombPending != null && player.kickDirectionPending != Direction.NONE) {
+             Bomb bombToKick = player.kickableBombPending;
+             Direction directionToKick = player.kickDirectionPending;
+             // Giả định Bomb có startKicking()
+             bombToKick.startKicking(directionToKick, Bomb.KICK_SPEED_CONSTANT);
+             player.kickableBombPending = null;
+             player.kickDirectionPending = Direction.NONE;
+         }
+     }
+     public void handleFlameBombCollisions() { /* ... Code gốc ... */
+         List<Flame> currentFlames = new ArrayList<>(flames);
+         List<Bomb> currentBombs = new ArrayList<>(bombs);
+         for (Flame flame : currentFlames) {
+             if (!flame.isActive()) continue;
+             for (Bomb bomb : currentBombs) {
+                 if (bomb.isActive() && !bomb.isExploded()) {
+                     if (flame.getGridX() == bomb.getGridX() && flame.getGridY() == bomb.getGridY()) {
+                         // Giả định Bomb có triggerExplosion()
+                         bomb.triggerExplosion();
+                     }
+                 }
+             }
+         }
+     }
+     public void handlePlayerItemCollisions() { /* ... Code gốc ... */
+         if (player == null || !player.isAlive()) return;
+         Iterator<Item> itemIterator = items.iterator();
+         while (itemIterator.hasNext()) {
+             Item item = itemIterator.next();
+             // Giả định Player có collidesWith(Item) và Item có applyEffect(Player)
+             if (item.isActive() && player.collidesWith(item)) {
+                 item.applyEffect(player);
+                 item.setActive(false); // Item tự xóa trong updateItems
+                 addScore(50);
+                 if (this != null) { // Đảm bảo gameManager không null (mặc dù this không bao giờ null ở đây)
+                     playItemPickupSound(); // T (gọi phương thức của Bomberman)
+                 }// Cộng điểm khi nhặt item (thêm vào)
+             }
+         }
+     }
+     public void handlePortalTransition(){
+         if (player != null && player.isAlive() && portalActivated && portalGridX != -1) {
+             int playerCurrentGridX = player.getGridX();
+             int playerCurrentGridY = player.getGridY();
+
+             if (playerCurrentGridX == portalGridX && playerCurrentGridY == portalGridY) {
+
+                 System.out.println("Player entered portal! (Stored Grid Coordinates Match)");
+
+                 if (levelTimeRemaining > 0) { // Cộng điểm thời gian nếu còn
+                     addScore((int)(levelTimeRemaining * 2));
+                     System.out.println("Added time bonus score.");
+                 }
+                 addScore(1000); // Cộng điểm qua màn cố định
+                 System.out.println("Added level clear bonus score.");
+
+                 currentLevel++; // Tăng số level hiện tại
+
+                 if (currentLevel <= MAX_LEVEL) { // Kiểm tra xem còn level để chơi không
+                     System.out.println("Loading next level: " + currentLevel);
+                     requestLoadLevelAndSwitchState(currentLevel, GameState.PLAYING);
+                 } else { // Đã hoàn thành level cuối cùng
+                     System.out.println("CONGRATULATIONS! YOU BEAT THE GAME!");
+                     if (primaryStage != null) {
+                         primaryStage.close(); // Đóng cửa sổ game
+                     }
+                 }
+             }
+         }
+     }
+     // Trong Bomberman.java
+     public void handleFlameEnemyCollisions() {
+         List<Flame> currentFlames = new ArrayList<>(flames); // Tránh ConcurrentModificationException
+         List<Enemy> currentEnemies = new ArrayList<>(enemies);
+
+         for (Flame flame : currentFlames) {
+             if (!flame.isActive()) continue;
+             for (Enemy enemy : currentEnemies) {
+                 // Chỉ xử lý va chạm nếu Enemy còn sống
+                 if (enemy.isAlive()) {
+                     // Kiểm tra va chạm AABB đơn giản giữa tâm Flame và tâm Enemy
+                     double flameCenterX = flame.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                     double flameCenterY = flame.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                     double enemyCenterX = enemy.getX() + Sprite.SCALED_SIZE / 2.0;
+                     double enemyCenterY = enemy.getY() + Sprite.SCALED_SIZE / 2.0;
+                     double dx = flameCenterX - enemyCenterX;
+                     double dy = flameCenterY - enemyCenterY;
+                     double distance = Math.sqrt(dx*dx + dy*dy);
+                     double collisionDistance = Sprite.SCALED_SIZE * 0.7; // Khoảng cách va chạm (điều chỉnh)
+
+                     if (distance < collisionDistance) {
+                         enemy.die(); // Gọi phương thức die() của Enemy
+                         // Flame không biến mất khi chạm Enemy
+                     }
+                 }
+             }
+         }
+     }
+     // Thêm phương thức này vào lớp Bomberman.java
+     public void handlePlayerFlameCollisions() {
+         // Chỉ kiểm tra nếu Player tồn tại, còn sống và không đang trong trạng thái chết tạm thời
+         if (player == null || !player.isAlive() || player.isDyingTemporarily()) {
+             return; // Không xử lý va chạm nếu Player không hợp lệ
+         }
+
+         // Kiểm tra xem Player có đang bất tử không
+         if (player.isInvincible()) { // isInvincible là thuộc tính public, nếu là private dùng player.isInvincible()
+             // Player đang bất tử, bỏ qua va chạm với lửa
+             return;
+         }
+
+         // Duyệt qua tất cả các ngọn lửa đang hoạt động
+         List<Flame> currentFlames = new ArrayList<>(flames); // Tạo bản sao để tránh lỗi nếu danh sách flames thay đổi trong vòng lặp (ít xảy ra ở đây nhưng là thói quen tốt)
+         for (Flame flame : currentFlames) {
+             // Chỉ kiểm tra va chạm với ngọn lửa còn hoạt động
+             if (flame.isActive()) {
+                 // --- Kiểm tra va chạm dạng hình hộp (Axis-Aligned Bounding Box - AABB) ---
+                 // So sánh vị trí và kích thước của hộp va chạm Player và Flame.
+                 // Giả định cả hai đều có kích thước va chạm bằng Sprite.SCALED_SIZE
+                 // và pixelX/pixelY là vị trí góc trên bên trái tương đối so với khu vực game (dưới UI panel).
+
+                 double playerLeft = player.getPixelX();
+                 double playerRight = player.getPixelX() + Sprite.SCALED_SIZE;
+                 double playerTop = player.getPixelY();
+                 double playerBottom = player.getPixelY() + Sprite.SCALED_SIZE;
+
+                 double flameLeft = flame.getPixelX();
+                 double flameRight = flame.getPixelX() + Sprite.SCALED_SIZE;
+                 double flameTop = flame.getPixelY();
+                 double flameBottom = flame.getPixelY() + Sprite.SCALED_SIZE;
+
+                 // Kiểm tra sự chồng lấn giữa hai hình chữ nhật
+                 boolean overlap = playerRight > flameLeft && playerLeft < flameRight &&
+                         playerBottom > flameTop && playerTop < flameBottom;
+
+
+                 // Nếu có va chạm chồng lấn
+                 if (overlap) { // Nếu dùng phương pháp AABB
+                     // if (distance < collisionThreshold) { // Nếu dùng phương pháp khoảng cách
+                     System.out.println("Player collided with flame at (" + flame.getGridX() + ", " + flame.getGridY() + ")!"); // Log
+                     // Gọi phương thức Player.takeDamage(). Player sẽ tự xử lý giảm mạng, animation chết tạm thời, và hồi sinh/game over.
+                     player.takeDamage(1); // Mất 1 mạng
+
+                     // Quan trọng: Thoát khỏi vòng lặp ngay sau khi Player nhận sát thương
+                     // để tránh Player nhận sát thương nhiều lần từ cùng một vụ nổ trong một frame.
+                     return;
+                 }
+             }
+         }
+     }
+
+     public void handlePlayerEnemyCollisions() {
+         if (player == null || !player.isAlive()) return;
+
+         List<Enemy> currentEnemies = new ArrayList<>(enemies);
+         for (Enemy enemy : currentEnemies) {
+             if (enemy.isAlive()) { // Chỉ va chạm với Enemy còn sống
+                 double playerCenterX = player.getPixelX() + Sprite.SCALED_SIZE / 2.0;
+                 double playerCenterY = player.getPixelY() + Sprite.SCALED_SIZE / 2.0;
+                 double enemyCenterX = enemy.getX() + Sprite.SCALED_SIZE / 2.0;
+                 double enemyCenterY = enemy.getY() + Sprite.SCALED_SIZE / 2.0;
+                 double dx = playerCenterX - enemyCenterX;
+                 double dy = playerCenterY - enemyCenterY;
+                 double distance = Math.sqrt(dx*dx + dy*dy);
+                 double collisionDistance = Sprite.SCALED_SIZE * 0.8; // Khoảng cách va chạm (điều chỉnh)
+
+                 if (distance < collisionDistance) {
+                     System.out.println("Player collided with an enemy!");
+                     // Player chết khi va chạm Enemy
+                     player.takeDamage(1);
+                     return;
+                 }
+             }
+         }
+     }
+     // =========================================================================
+     // Rendering Components (Được gọi bởi các Controller)
+     // =========================================================================
+     /** Vẽ các thành phần game chính (map, entities) lên gc. */
+     public void renderGameComponents(GraphicsContext gc) {
+         if (gc == null) return;
+         // Vẽ map nền
+         if (gameMap != null) gameMap.render(gc);
+         // Vẽ các lớp entities theo thứ tự
+         renderItems(gc);          // Items
+         renderBombs(gc);          // Bombs
+         renderTemporaryAnimations(gc); // Hiệu ứng nổ gạch,...
+         renderEnemies(gc);
+         renderFlames(gc);         // Flames (có thể vẽ trên player?)
+         if (player != null) player.render(gc); // Player
+         // Vẽ UI luôn được gọi sau cùng bởi vòng lặp chính (handle) sau khi controller render
+         renderUI(gc); // Vẽ thanh UI thông tin
+     }
+
+     // Các hàm render con (giữ nguyên)
+     private void renderBombs(GraphicsContext gc) { for (Bomb b : bombs) b.render(gc); }
+     private void renderFlames(GraphicsContext gc) { for (Flame f : flames) f.render(gc); }
+     private void renderItems(GraphicsContext gc) { for (Item i : items) i.render(gc); }
+     private void renderTemporaryAnimations(GraphicsContext gc) { for (TemporaryAnimation ta : temporaryAnimations) ta.render(gc); }
+     private void renderEnemies(GraphicsContext gc) {
+         for (Enemy e : enemies) {
+             e.render(gc);
+         }
+     }
+     private void renderUI(GraphicsContext gc) { /* ... Code gốc ... */
+         if (gc == null || canvas == null || uiFont == null) return;
+         int currentLives = (player != null && player.isAlive()) ? player.getLives() : 0;
+         int currentScore = this.score;
+         int currentLevelDisplay = this.currentLevel; // Dùng level hiện tại của Bomberman
+         int totalSecondsRemaining = Math.max(0, (int) Math.ceil(levelTimeRemaining));
+         double canvasWidth = canvas.getWidth();
+         double padding = 10;
+         double textBaselineOffsetY = 5;
+         double yPositionText = UI_PANEL_HEIGHT / 2.0 + textBaselineOffsetY;
+         gc.setFill(Color.WHITE);
+         gc.setFont(this.uiFont);
+
+         // Level
+         String levelText = "LEVEL: " + currentLevelDisplay;
+         gc.fillText(levelText, padding, yPositionText);
+         // Time
+         String timeText = "TIME: " + totalSecondsRemaining;
+         double xPositionTime = padding + 150;
+         gc.fillText(timeText, xPositionTime, yPositionText);
+         // Score
+         String scoreText = "SCORE: " + currentScore;
+         Text scoreTextNode = new Text(scoreText); scoreTextNode.setFont(uiFont);
+         double scoreTextWidth = scoreTextNode.getLayoutBounds().getWidth();
+         double xPositionScore = (canvasWidth / 2.0) - (scoreTextWidth / 2.0);
+         gc.fillText(scoreText, xPositionScore, yPositionText);
+         // Lives
+         String livesNumText = "" + currentLives;
+         Text livesNumTextNode = new Text(livesNumText); livesNumTextNode.setFont(uiFont);
+         double livesNumTextWidth = livesNumTextNode.getLayoutBounds().getWidth();
+         double xPositionLivesText = canvasWidth - livesNumTextWidth - padding;
+         gc.fillText(livesNumText, xPositionLivesText, yPositionText );
+         // Life Icon
+         Sprite iconSprite = Sprite.player_down;
+         if (iconSprite != null && iconSprite.getFxImage() != null) {
+             Image lifeIcon = iconSprite.getFxImage();
+             double iconDrawWidth = Sprite.SCALED_SIZE - 4;
+             double iconDrawHeight = Sprite.SCALED_SIZE - 8;
+             double yPositionIcon = (UI_PANEL_HEIGHT - iconDrawHeight) / 2.0;
+             double xPositionIcon = xPositionLivesText - iconDrawWidth - 5;
+             gc.drawImage(lifeIcon, xPositionIcon, yPositionIcon, iconDrawWidth, iconDrawHeight);
+         }
+     }
+
+
+     // =========================================================================
+     // Game Over Particle Logic (Giữ nguyên)
+     // =========================================================================
+     public void initializeGameOverParticles() { /* ... Code gốc ... */
+         particles.clear();
+         int numberOfParticles = 100; // Số gốc
+         if (canvas != null) {
+             for (int i = 0; i < numberOfParticles; i++) {
+                 // Giả định Particle constructor nhận width, height
+                 particles.add(new Particle(canvas.getWidth(), canvas.getHeight()));
+             }
+         }
+     }
+     public void updateGameOverParticles(double deltaTime) { /* ... Code gốc ... */
+         if (canvas != null) {
+             for (Particle p : particles) {
+                 // Giả định Particle update nhận delta và canvas height
+                 p.update(deltaTime, canvas.getHeight());
+             }
+         }
+     }
+
+     // =========================================================================
+     // Utility Methods & Getters (Thêm các getter cần thiết cho Controller)
+     // =========================================================================
+     public GameState getCurrentState() { return currentState; }
+     public SceneController getCurrentController() { return currentController; } // QUAN TRỌNG cho InputHandler
+     public Stage getPrimaryStage() { return primaryStage; }
+     public GraphicsContext getGraphicsContext() { return gc; } // Cần cho render
+     public Canvas getCanvas() { return canvas; } // Cần để lấy kích thước, snapshot
+     public double getCanvasWidth() { return (canvas != null) ? canvas.getWidth() : 0; }
+     public double getCanvasHeight() { return (canvas != null) ? canvas.getHeight() : 0; }
+     public Player getPlayer() { return player; }
+     public com.example.bomberman.Map.Map getGameMap() { return gameMap; }
+     public List<Enemy> getEnemies() { return enemies; }
+     public List<Bomb> getBombs() { return bombs; }
+     public List<Item> getItems() { return items; }
+     public List<Flame> getFlames() { return flames;} // Thêm getter nếu cần
+     public List<TemporaryAnimation> getTemporaryAnimations() { return temporaryAnimations;} // Thêm getter nếu cần
+     public List<Particle> getParticles() { return particles; } // Cần cho GameOverController
+     public int getScore() { return score; }
+     public double getLevelTimeRemaining() { return levelTimeRemaining; }
+     public void setLevelTimeRemaining(double time) { this.levelTimeRemaining = time; } // Cần setter
+     public boolean isPortalActivated() { return portalActivated; }
+     public void setPortalActivated(boolean activated) { this.portalActivated = activated; } // Cần setter
+     public Font getUiFont() { return uiFont; }
+     public Font getGameOverFont() { return gameOverFont; }
+     public Image getMenuBackground() { return menuBackground; }
+     public Image getHandCursorImage() { return handCursorImage; }
+     public Image getLastScreenSnapshot() { return lastScreenSnapshot; }
+     public void setLastScreenSnapshot(Image snapshot) { this.lastScreenSnapshot = snapshot; } // Cần setter
+     public Animation getPlayerDeadAnimation() { return playerDeadAnimation; }
+     public InputHandler getInputHandler() { return inputHandler; } // Cần cho PauseController
+     // Cần setter
+
+
+     // Helper nhận KeyCode trả về Direction (có thể đặt ở InputHandler hoặc đây)
+     public Direction getDirectionFromKey(KeyCode code) {
+         switch (code) {
+             case W: case UP: return Direction.UP;
+             case S: case DOWN: return Direction.DOWN;
+             case A: case LEFT: return Direction.LEFT;
+             case D: case RIGHT: return Direction.RIGHT;
+             default: return Direction.NONE;
+         }
+     }
+     // Helper kiểm tra phím di chuyển
+     public boolean isMovementKey(KeyCode code) {
+         return code == KeyCode.W || code == KeyCode.S || code == KeyCode.A || code == KeyCode.D
+                 || code == KeyCode.UP || code == KeyCode.DOWN || code == KeyCode.LEFT || code == KeyCode.RIGHT;
+     }
+     public boolean isBombAtGrid(int gridX, int gridY) {
+         // Duyệt qua danh sách bom hiện có trong Bomberman
+         for (Bomb bomb : bombs) { // 'bombs' là List<Bomb> của Bomberman
+             // Chỉ kiểm tra bom còn active và đúng vị trí
+             if (bomb.isActive() && bomb.getGridX() == gridX && bomb.getGridY() == gridY) {
+                 return true; // Tìm thấy bom tại vị trí
+             }
+         }
+         return false; // Không tìm thấy bom nào tại vị trí đó
+     }
+     public double getElapsedTime() {
+         return Math.max(0, LEVEL_DURATION_SECONDS - this.levelTimeRemaining);
+     }
+
+ }package com.example.bomberman.entities;
+
+  import com.example.bomberman.Map.Map;
+  import com.example.bomberman.Map.Tile;
+  import com.example.bomberman.Map.TileType;
+  import com.example.bomberman.graphics.Sprite;
+  import com.example.bomberman.graphics.Animation;
+  import javafx.scene.canvas.GraphicsContext;
+  import javafx.scene.image.Image;
+  import com.example.bomberman.entities.Items.Item;
+
+
+  import java.util.HashSet;
+  import java.util.List; // IMPORT LỚP LIST
+  import java.util.Set;
+  import com.example.bomberman.Bomberman;
+  import javafx.scene.media.AudioClip;
+
+  // Lớp đại diện cho người chơi Bomberman
+  public class Player {
+      private static final int MAX_ALLOWED_BOMBS = 8;   // Ví dụ: Tối đa 8 quả bom
+      private static final int MAX_ALLOWED_FLAMES = 8; // Ví dụ: Tối đa lửa dài 8 ô
+      private static final double MAX_ALLOWED_SPEED = 250.0; // Ví dụ: Tối đa tốc độ 250
+
+      // --- Thuộc tính vị trí và di chuyển ---
+      private double pixelX; // Vị trí pixel theo trục X
+      private double pixelY; // Vị trí pixel theo trục Y
+      private int gridX; // Vị trí lưới theo trục X (cột)
+      private int gridY; // Vị trí lưới theo trục Y (hàng)
+      private double speed = 100.0; // Tốc độ di chuyển (pixel / giây). CÓ THỂ ĐƯỢC TĂNG BỞI ITEM.
+      private Direction currentDirection = Direction.NONE; // Hướng di chuyển hiện tại
+      private boolean isMoving = false; // Cờ cho biết đang di chuyển hay đứng yên
+
+      // --- Thuộc tính game play (liên quan đến Item và Bomb) ---
+      private int maxBombs = 1; // Số lượng bom tối đa CÓ THỂ đặt cùng lúc. CÓ THỂ ĐƯỢC TĂNG BỞI ITEM.
+      private int currentBombs; // Số lượng bom HIỆN TẠI Player có thể đặt (giảm khi đặt, tăng khi bom nổ).
+      private int flameLength = 1; // Độ dài ngọn lửa khi bom nổ. CÓ THỂ ĐƯỢC TĂNG BỞI ITEM.
+      private int lives = 3; // Số mạng của Player (cho vật phẩm LifeItem). CÓ THỂ ĐƯỢC TĂNG BỞI ITEM.
+      private boolean isInvincible = false;
+      private double invincibilityTimer = 0;
+      private final double INVINCIBILITY_DURATION = 2.0; // Thời gian bất tử (ví dụ 2 giây)
+      private int initialGridX; // Vị trí lưới X xuất phát của level
+      private int initialGridY; // Vị trí lưới Y xuất phát của level
+      private boolean justRespawnedInvincibility = false; // Cờ để xử lý invincibility sau khi respawn
+      // --- Thuộc tính Powerup nâng cao ---
+      // TODO: private boolean canPassBrick = false; // Có thể đi xuyên gạch (sau khi đặt bom)
+      public boolean canKickBomb = false; // Có thể đá Bom đã đặt (powerupBombpass/kickbomb)
+      public Bomb kickableBombPending = null; // Lưu tham chiếu đến quả Bom sắp bị đá (Public để Bomberman truy cập)
+      public Direction kickDirectionPending = Direction.NONE; // Lưu hướng đá pending (Public để Bomberman truy cập)
+
+
+      // --- Trạng thái cơ bản ---
+      private boolean isAlive = true; // Cờ cho biết Player còn sống hay không
+      // TODO: private double deathTimer = 0; // Bộ đếm thời gian cho animation chết
+      //--ANIMATION DEAD---
+      private Animation dyingAnimation; // Animation cho việc chết tạm thời
+      private boolean isDyingTemporarily = false; // Cờ cho biết đang trong trạng thái chết tạm thời
+      private double dyingAnimationTimer = 0; // Timer riêng cho animation chết tạm thời
+      private final double deathTimer = 1.0;
+
+
+      // --- Tham chiếu đến Map và GameManager ---
+      private Map map; // Tham chiếu đến đối tượng Map
+      private Bomberman gameManager; // Tham chiếu đến lớp quản lý game chính (Bomberman)
+
+
+      // --- Animation attributes ---
+      // Các animation cho từng hướng di chuyển và đứng yên
+      private Animation walkUpAnimation;
+      private Animation walkDownAnimation;
+      private Animation walkLeftAnimation;
+      private Animation walkRightAnimation;
+      private Animation idleUpAnimation;
+      private Animation idleDownAnimation;
+      private Animation idleLeftAnimation;
+      private Animation idleRightAnimation;
+      // TODO: Animation chết
+      private Animation currentAnimation; // Animation đang chạy hiện tại
+      private double animationTimer = 0; // Bộ đếm thời gian cho animation
+      private Direction lastNonNoneDirection = Direction.DOWN; // Hướng cuối cùng không phải NONE (để biết đứng yên hướng nào)
+
+      // --- Constructor ---
+      public Player(int startGridX, int startGridY, Map map, Bomberman gameManager) {
+          // Tính toán vị trí pixel dựa trên vị trí lưới và kích thước Sprite đã scale
+          this.gridX = startGridX;
+          this.gridY = startGridY;
+          this.pixelX = startGridX * Sprite.SCALED_SIZE;
+          this.pixelY = startGridY * Sprite.SCALED_SIZE;
+
+          this.map = map; // Gán tham chiếu Map
+          this.gameManager = gameManager; // Gán tham chiếu GameManager
+
+          // --- Khởi tạo các thuộc tính game play ban đầu ---
+          this.maxBombs = 1;
+          this.currentBombs = this.maxBombs; // Ban đầu số bom hiện có bằng số bom tối đa
+          this.flameLength = 1;
+          this.lives = 3;
+
+          // --- Khởi tạo trạng thái ban đầu ---
+          this.isAlive = true;
+          this.isMoving = false;
+          this.currentDirection = Direction.NONE;
+
+          // --- Khởi tạo các thuộc tính Powerup ban đầu ---
+          this.canKickBomb = false;
+          this.initialGridX = startGridX; // Lưu vị trí xuất phát
+          this.initialGridY = startGridY;
+
+          this.isInvincible = false;
+          this.invincibilityTimer = 0;
+
+
+          // --- Khởi tạo các Animation ---
+          double frameDuration = 0.15; // Thời gian hiển thị mỗi frame animation (có thể điều chỉnh)
+
+          // Animation di chuyển
+          walkUpAnimation = new Animation(frameDuration, true, Sprite.player_up, Sprite.player_up_1, Sprite.player_up_2, Sprite.player_up_1);
+          walkDownAnimation = new Animation(frameDuration, true, Sprite.player_down, Sprite.player_down_1, Sprite.player_down_2, Sprite.player_down_1);
+          walkLeftAnimation = new Animation(frameDuration, true, Sprite.player_left, Sprite.player_left_1, Sprite.player_left_2, Sprite.player_left_1);
+          walkRightAnimation = new Animation(frameDuration, true, Sprite.player_right, Sprite.player_right_1, Sprite.player_right_2, Sprite.player_right_1);
+
+          // Animation đứng yên
+          idleUpAnimation = new Animation(frameDuration, true, Sprite.player_up);
+          idleDownAnimation = new Animation(frameDuration, true, Sprite.player_down);
+          idleLeftAnimation = new Animation(frameDuration, true, Sprite.player_left);
+          idleRightAnimation = new Animation(frameDuration, true, Sprite.player_right);
+
+          // Animation ban đầu khi game bắt đầu
+          currentAnimation = idleDownAnimation;
+          //ANIMATION DEAD
+          double dyingFrameDuration = deathTimer / 3.0; // Chia đều thời gian cho 3 frame
+          dyingAnimation = new Animation(dyingFrameDuration, false, // loop = false
+                  Sprite.player_dead1,
+                  Sprite.player_dead2,
+                  Sprite.player_dead3);
+
+      }
+
+
+      // --- Phương thức được gọi bởi InputHandler để đặt hướng di chuyển ---
+      public void setMovingDirection(Direction direction) {
+          // --- 1. Kiểm tra trạng thái sống (Chỉ chạy một lần ở đầu) ---
+          if(!isAlive || isDyingTemporarily){
+          if (this.isMoving&&gameManager!=null) gameManager.stopPlayerWalkSound();
+              // Nếu Player không còn sống, đảm bảo dừng âm thanh bước chân nếu nó đang phát
+              // (Sử dụng trạng thái isMoving hiện tại để kiểm tra)
+
+              this.currentDirection = Direction.NONE;
+              this.isMoving = false;
+
+              return; // Thoát ngay nếu Player không sống
+          }
+          boolean wasMoving = this.isMoving; // Lưu trạng thái di chuyển cũ
+
+          // --- Logic cập nhật hướng và trạng thái isMoving như cũ ---
+          if (direction != Direction.NONE) {
+              isMoving = true;
+              if (direction != currentDirection) {
+                  currentDirection = direction;
+                  lastNonNoneDirection = direction;
+                  // ... (cập nhật currentAnimation) ...
+                  animationTimer = 0;
+              }
+          } else {
+              if (isMoving) { // Chỉ xử lý nếu trước đó đang di chuyển
+                  isMoving = false;
+                  currentDirection = Direction.NONE;
+                  // ... (cập nhật currentAnimation về idle) ...
+                  animationTimer = 0;
+              }
+          }
+
+
+          // --- 3. Xử lý âm thanh bước chân dựa trên sự thay đổi trạng thái di chuyển ---
+          // Logic này sử dụng trạng thái cũ (wasMoving) và trạng thái mới (this.isMoving)
+          boolean isMovingNow = this.isMoving; // Lấy trạng thái mới
+
+          if (gameManager != null) { // Luôn kiểm tra gameManager không null
+              // Nếu BẮT ĐẦU di chuyển (trước đó không, bây giờ có)
+              if (isMovingNow && !wasMoving) {
+                  gameManager.startPlayerWalkSound(); // Gọi hàm bắt đầu âm thanh lặp
+              }
+              // Nếu DỪNG di chuyển (trước đó có, bây giờ không)
+              else if (!isMovingNow && wasMoving) {
+                  gameManager.stopPlayerWalkSound(); // Gọi hàm dừng âm thanh lặp
+              }
+          }
+
+          // --- 4. Cập nhật Animation dựa trên trạng thái di chuyển VÀ hướng mới ---
+          if (isMoving) {
+              // Đang di chuyển, chọn animation di chuyển theo hướng mới
+              switch (this.currentDirection) { // Dùng this.currentDirection đã được cập nhật
+                  case UP: currentAnimation = walkUpAnimation; lastNonNoneDirection = Direction.UP; break;
+                  case DOWN: currentAnimation = walkDownAnimation; lastNonNoneDirection = Direction.DOWN; break;
+                  case LEFT: currentAnimation = walkLeftAnimation; lastNonNoneDirection = Direction.LEFT; break;
+                  case RIGHT: currentAnimation = walkRightAnimation; lastNonNoneDirection = Direction.RIGHT; break;
+                  case NONE: break; // Trường hợp này isMoving sẽ là false, không nên vào đây
+              }
+              // animationTimer không cần reset ở đây để animation di chuyển chạy mượt
+
+          } else {
+              // Không di chuyển, chọn animation đứng yên theo hướng cuối cùng không phải NONE
+              switch (lastNonNoneDirection) {
+                  case UP: currentAnimation = idleUpAnimation; break;
+                  case DOWN: currentAnimation = idleDownAnimation; break;
+                  case LEFT: currentAnimation = idleLeftAnimation; break;
+                  case RIGHT: currentAnimation = idleRightAnimation; break;
+                  default: currentAnimation = idleDownAnimation; break; // Mặc định đứng yên hướng xuống
+              }
+              animationTimer = 0; // Reset timer animation khi dừng di chuyển để animation bắt đầu từ frame đầu tiên
+          }
+
+          // ANIMATION DEAD LOGIC (Nếu bạn có animation chết riêng cho Player trong Player.java)
+          // if (!isAlive && dyingAnimation != null) {
+          //     currentAnimation = dyingAnimation;
+          //     // animationTimer không cần reset ở đây vì dyingTimer/animationTimer sẽ được quản lý ở Player.update
+          // }
+      }
+      // Phương thức được gọi bởi InputHandler khi nhấn phím đặt bom
+      public void placeBomb() {
+          // Chỉ cho phép đặt bom nếu Player còn sống và không đang trong trạng thái không thể đặt bom
+          if (!isAlive) {
+              return;
+          }
+          int bombGridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
+          int bombGridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
+
+          // TODO: Kiểm tra xem ô hiện tại đã có bom chưa (tránh đặt chồng lên bom khác)
+
+          // Cần thêm phương thức public boolean isBombAtGrid(int gridX, int gridY) vào Bomberman và sử dụng gameManager
+          boolean isBombAtCurrentLocation = false;
+          if (gameManager != null) {
+              isBombAtCurrentLocation = gameManager.isBombAtGrid(gridX, gridY);
+          }
+
+
+          // Kiểm tra xem có đủ số bom cho phép (currentBombs > 0) và ô hiện tại chưa có bom
+          if (currentBombs > 0 && !isBombAtCurrentLocation) {
+              // Xác định vị trí lưới chính xác để đặt bom (làm tròn vị trí pixel của Playe
+
+              Tile tileAtBombPos = map.getTile(bombGridX, bombGridY);
+              if (map != null) { // Kiểm tra map không null
+                  tileAtBombPos = map.getTile(bombGridX, bombGridY);
+              }
+              if (tileAtBombPos != null && tileAtBombPos.getType() == TileType.WALL) {
+                  System.out.println("Cannot place bomb inside a solid wall.");
+                  return;
+              }
+
+
+              // Tạo một đối tượng Bomb mới. Truyền gameMap để Bomb có thể kiểm tra va chạm Tile khi bị đá.
+              Bomb newBomb = new Bomb(bombGridX, bombGridY, flameLength, this, map,this.gameManager); // Truyền owner (this) và map
+
+              // Thêm bom vào danh sách quản lý bom của game thông qua gameManager
+              if (gameManager != null) {
+                  gameManager.addBomb(newBomb); // gameManager phải có phương thức addBomb(Bomb bomb)
+                  System.out.println("Player placed a bomb at (" + bombGridX + ", " + bombGridY + "). Current bombs left: " + (currentBombs - 1)); // Log
+                  // Giảm số lượng bom mà Player có thể đặt SAU KHI thêm thành công
+                  gameManager.playBombPlacedSound();
+                  currentBombs--;
+              } else {
+
+              }
+
+          } else if (isBombAtCurrentLocation) {
+              System.out.println("Cannot place bomb: Another bomb is already at (" + bombGridX + ", " + bombGridY + ")");
+          } else { // Trường hợp currentBombs <= 0
+              System.out.println("Cannot place bomb: No bombs available (Current: " + currentBombs + "/" + maxBombs + ")");
+          }
+      }
+
+      // Phương thức được gọi bởi Bomb khi nổ để Player có thể đặt thêm bom
+      public void increaseBombCount() {
+
+          currentBombs = Math.min(currentBombs + 1, maxBombs);
+          System.out.println("Bomb count increased after explosion. Current bombs: " + currentBombs + " (Max: " + maxBombs + ")"); // Log
+      }
+
+
+      // --- Phương thức áp dụng hiệu ứng từ Item BombItem ---
+      // Được gọi từ BombItem.applyEffect()
+      public void increaseMaxBombs() {
+          if(maxBombs<MAX_ALLOWED_BOMBS){
+              maxBombs++;
+              currentBombs++; System.out.println("Collected BombItem! New Max Bombs: " + maxBombs + ", Current Bombs: " + currentBombs);
+          } else {
+              System.out.println("Max bomb limit reached (" + MAX_ALLOWED_BOMBS + ").");
+              gameManager.addScore(50); // Ví dụ: cộng điểm nếu đã max
+          }
+      }
+
+      // --- Phương thức áp dụng hiệu ứng từ Item FlameItem ---
+      // Được gọi từ FlameItem.applyEffect()
+      public void increaseFlameLength() {
+          if(flameLength<MAX_ALLOWED_FLAMES){
+              flameLength++;
+              System.out.println("Collected FlameItem! New Flame Length: " + flameLength);
+          }
+          else {
+              System.out.println("Max flame length reached (" + MAX_ALLOWED_FLAMES + ").");
+              gameManager.addScore(50);
+          }
+
+      }
+
+      // --- Phương thức áp dụng hiệu ứng từ Item SpeedItem ---
+      // Được gọi từ SpeedItem.applyEffect()
+      public void increaseSpeed() {
+          if(speed<MAX_ALLOWED_SPEED){
+              speed+=50;
+              speed = Math.min(speed, MAX_ALLOWED_SPEED);
+              System.out.println("Collected SpeedItem! New Speed: " + speed); // Log
+          }
+          else{
+              System.out.println("Max speed reached (" + MAX_ALLOWED_SPEED + ").");
+              gameManager.addScore(50);
+
+          }
+
+      }
+
+      // --- Phương thức áp dụng hiệu ứng từ Item LifeItem ---
+      // Được gọi từ LifeItem.applyEffect()
+      public void increaseLives() {
+          lives++; // Tăng số mạng
+          System.out.println("Collected LifeItem! New Lives: " + lives); // Log
+      }
+
+      // --- Phương thức áp dụng hiệu ứng từ Item KickBombItem ---
+      // Được gọi từ KickBombItem.applyEffect()
+      public void enableKickBomb() {
+          this.canKickBomb = true; // Bật khả năng Đá Bom cho Player
+          System.out.println("Kick Bomb ability enabled for Player."); // Log
+      }
+
+
+
+      // --- Phương thức cập nhật trạng thái Player mỗi frame ---
+      // Được gọi bởi Vòng lặp Game (Bomberman.handle)
+
+      public void update(double deltaTime) {
+
+          if (!isAlive) {
+              if (gameManager != null) gameManager.stopPlayerWalkSound();
+              return;
+          }
+          if (isDyingTemporarily) {
+              if (gameManager != null) gameManager.stopPlayerWalkSound();
+              dyingAnimationTimer += deltaTime; // Cập nhật timer riêng của animation chết
+              animationTimer += deltaTime;      // Cập nhật timer chung cho animation getFrame
+
+              // Kiểm tra xem animation chết đã kết thúc chưa
+              if (dyingAnimation != null && dyingAnimation.isFinished(dyingAnimationTimer)) {
+                  // Animation chết đã xong, tiến hành respawn
+                  System.out.println("Player temporary dying animation finished. Respawning.");
+                  isDyingTemporarily = false; // Tắt cờ chết tạm thời
+                  // Gọi hàm respawn (đưa về vị trí cũ và bật bất tử)
+                  if (lives <= 0) {
+                      // Hết mạng thực sự sau animation
+                      System.out.println("Player update: Dying animation finished. No lives left. SETTING ISALIVE = FALSE."); // Log quan trọng
+                      isAlive = false; // << Đảm bảo dòng này được thực thi khi hết mạng
+                  } else {
+                      // Còn mạng, tiến hành respawn
+                      System.out.println("Player update: Dying animation finished. Respawning.");
+                      respawn();
+                  }
+              }
+              // Khi đang chết tạm thời, không làm gì khác (không di chuyển, không nhận sát thương thêm...)
+              return; // Dừng update tại đây
+          }
+          if (isInvincible) {
+              invincibilityTimer -= deltaTime;
+              if (invincibilityTimer <= 0) {
+                  isInvincible = false;
+                  invincibilityTimer = 0;
+                  justRespawnedInvincibility = false;
+                  System.out.println("Player invincibility ended.");
+              }
+          }
+
+          // LẤY DANH SÁCH BOM (VÀ ENEMY SAU NÀY) TỪ GAMEMANAGER ĐỂ KIỂM TRA VA CHẠM THỰC THỂ
+          // Cần phương thức public List<Bomb> getBombs() trong lớp Bomberman (đã thêm ở bước trước)
+          List<com.example.bomberman.entities.Bomb> bombs = (gameManager != null) ? gameManager.getBombs() : null;
+
+          // --- Cập nhật vị trí dựa trên hướng di chuyển và tốc độ ---
+          if (isMoving) {
+              double deltaPixelX = 0;
+              double deltaPixelY = 0;
+
+              // Tính toán thay đổi vị trí pixel trong frame này
+              switch (currentDirection) {
+                  case UP: deltaPixelY = -speed * deltaTime; break;
+                  case DOWN: deltaPixelY = speed * deltaTime; break;
+                  case LEFT: deltaPixelX = -speed * deltaTime; break;
+                  case RIGHT: deltaPixelX = speed * deltaTime; break;
+                  case NONE: break; // Trường hợp này isMoving sẽ là false
+              }
+
+              // --- Logic kiểm tra va chạm với Tile VÀ Blocking Entities (Bombs) ---
+              // Kiểm tra riêng từng trục X, Y để xử lý va chạm và neo lại ở cạnh vật cản
+
+              double nextPixelX = pixelX + deltaPixelX;
+              double nextPixelY = pixelY + deltaPixelY;
+
+              boolean canMoveX = true;
+              boolean canMoveY = true;
+
+              // Kiểm tra va chạm làm vật cản cho chuyển động theo trục X tại vị trí nextPixelX
+              if (deltaPixelX != 0) {
+                  // GỌI PHƯƠNG THỨC checkCollision ĐÃ SỬA ĐỔI, TRUYỀN DANH SÁCH BOM (VÀ ENEMY)
+                  // CHỈ TRUYỀN DANH SÁCH BOM TẠM THỜI VÌ CHƯA CÓ ENEMY
+                  canMoveX = !checkCollision(nextPixelX, pixelY, bombs ); // checkCollision giờ kiểm tra cả Tile và Bom chặn
+              }
+
+              // Cập nhật tạm thời pixelX (hoặc neo lại nếu va chạm X) để kiểm tra va chạm Y
+              double tempPixelX = pixelX;
+              if (canMoveX) {
+                  tempPixelX = nextPixelX;
+              } else {
+                  // Neo lại ở cạnh vật cản (Tile hoặc Entity) khi va chạm theo X
+                  tempPixelX = (deltaPixelX > 0) ?
+                          (int) Math.floor((pixelX + Sprite.SCALED_SIZE - 1) / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE :
+                          (int) Math.ceil(pixelX / Sprite.SCALED_SIZE) * Sprite.SCALED_SIZE;
+              }
+
+              // Kiểm tra va chạm làm vật cản cho chuyển động theo trục Y tại vị trí nextPixelY (sử dụng tempPixelX đã điều chỉnh)
+              if (deltaPixelY != 0) {
+                  // GỌI PHƯƠNG THỨC checkCollision ĐÃ SỬA ĐỔI, TRUYỀN DANH SÁCH BOM (VÀ ENEMY)
+                  // CHỈ TRUYỀN DANH SÁCH BOM TẠM THỜI VÌ CHƯA CÓ ENEMY
+                  canMoveY = !checkCollision(tempPixelX, nextPixelY, bombs ); // checkCollision giờ kiểm tra cả Tile và Bom chặn
+              }
+
+              // --- Cập nhật vị trí pixel cuối cùng nếu có thể di chuyển ---
+              if (canMoveX) {
+                  pixelX = nextPixelX;
+              }
+              if (canMoveY) {
+                  pixelY = nextPixelY;
+              }
+
+              // Cập nhật vị trí lưới (gridX, gridY) dựa trên vị trí pixel mới
+              this.gridX = (int) Math.round(pixelX / Sprite.SCALED_SIZE);
+              this.gridY = (int) Math.round(pixelY / Sprite.SCALED_SIZE);
+
+
+              if (currentAnimation != null) {
+                  animationTimer += deltaTime;
+              }
+
+
+          } else {
+              // --- Cập nhật animation timer khi không di chuyển ---
+              // Logic này giữ nguyên, nhưng giờ timer cũng chạy khi di chuyển ở khối if
+              if (currentAnimation != null) {
+                  animationTimer += deltaTime;
+              }
+          }
+
+
+      }
+
+
+      // --- Phương thức kiểm tra va chạm tại một vị trí pixel cụ thể (x, y) ---
+      // Phương thức này giờ kiểm tra va chạm với Tile KHÔNG đi qua HOẶC Bom làm vật cản.
+      // Trả về true nếu CÓ va chạm làm vật cản, false nếu KHÔNG va chạm.
+      // CHỮ KÝ ĐƯỢC SỬA ĐỔI ĐỂ NHẬN DANH SÁCH BOM (VÀ ENEMY)
+      // TẠM THỜI KHÔNG NHẬN DANH SÁCH ENEMY VÌ CHƯA CÓ LỚP ENEMY
+      private boolean checkCollision(double checkPixelX, double checkPixelY, List<Bomb> bombs ) {
+          this.kickableBombPending = null;
+          this.kickDirectionPending = Direction.NONE;
+
+          double playerSize = Sprite.SCALED_SIZE;
+          double buffer = 6.0;
+
+          // --- 1. Kiểm tra va chạm với các Tile làm vật cản (Wall, Brick) ---
+          double topLeftX_tile = checkPixelX + buffer;
+          double topLeftY_tile = checkPixelY + buffer;
+          double topRightX_tile = checkPixelX + playerSize - buffer;
+          double topRightY_tile = checkPixelY + buffer;
+          double bottomLeftX_tile = checkPixelX + buffer;
+          double bottomLeftY_tile = checkPixelY + playerSize - buffer;
+          double bottomRightX_tile = checkPixelX + playerSize - buffer;
+          double bottomRightY_tile = checkPixelY + playerSize - buffer;
+
+          Set<String> tilesToCheck = new HashSet<>();
+
+          tilesToCheck.add(((int) Math.floor(topLeftX_tile / playerSize)) + "," + ((int) Math.floor(topLeftY_tile / playerSize)));
+          tilesToCheck.add(((int) Math.floor(topRightX_tile / playerSize)) + "," + ((int) Math.floor(topRightY_tile / playerSize)));
+          tilesToCheck.add(((int) Math.floor(bottomLeftX_tile / playerSize)) + "," + ((int) Math.floor(bottomLeftY_tile / playerSize)));
+          tilesToCheck.add(((int) Math.floor(bottomRightX_tile / playerSize)) + "," + ((int) Math.floor(bottomRightY_tile / playerSize)));
+
+
+          // Kiểm tra từng ô lưới trong danh sách
+          for (String tileCoord : tilesToCheck) {
+              String[] coords = tileCoord.split(",");
+              int checkGridX = Integer.parseInt(coords[0]);
+              int checkGridY = Integer.parseInt(coords[1]);
+
+              Tile tile = null;
+              // Cần đảm bảo map không null và tọa độ hợp lệ khi lấy Tile
+              if (map != null && checkGridX >= 0 && checkGridX < map.getCols() && checkGridY >= 0 && checkGridY < map.getRows()) {
+                  tile = map.getTile(checkGridX, checkGridY);
+              } else {
+                  // Nếu điểm kiểm tra nằm ngoài biên bản đồ, coi như va chạm với rìa map
+                  return true; // Có va chạm chặn với biên map
+              }
+
+              if (tile != null) {
+                  // Kiểm tra va chạm với Wall hoặc Brick (chúng luôn chặn di chuyển)
+                  if (tile.getType() == TileType.WALL || tile.getType() == TileType.BRICK) { // TODO: Xử lý canPassBrick sau này (nếu canPassBrick, không return true ở đây)
+                      // System.out.println("Player blocked by Tile at (" + checkGridX + "," + checkGridY + ") at checked position."); // Log va chạm Tile (có thể quá nhiều)
+                      return true; // Va chạm với vật cản (Tile) -> CHẶN
+                  }
+              }
+          }
+
+          // Trong lớp Player.java, trong phương thức checkCollision(...)
+  // Bên trong vòng lặp kiểm tra từng quả Bom 'bomb'
+
+  // --- 2. Kiểm tra va chạm với các Bom làm vật cản ---
+  // Chỉ kiểm tra nếu danh sách bombs được cung cấp (không null)
+          if (bombs != null) {
+              // Duyệt qua từng quả Bom trong danh sách
+              for (com.example.bomberman.entities.Bomb bomb : bombs) {
+                  // Chỉ kiểm tra với Bom còn active, chưa nổ (bom đã nổ không chặn di chuyển theo cách này)
+                  if (bomb.isActive() && !bomb.isExploded()) { // isExploded() là getter trong Bomb
+
+                      // --- SỬA LỖI: KIỂM TRA XEM PLAYER CÓ ĐANG TRONG PHẠM VI PIXEL CỦA QUẢ BOM CỦA CHÍNH MÌNH KHÔNG ---
+                      // Kiểm tra xem Bom này có phải của Player không.
+                      boolean isOwnBomb = (bomb.getOwner() == this);
+
+                      if (isOwnBomb) {
+                          // Nếu đây là Bom của chính Player, kiểm tra xem Player có đang nằm trong phạm vi pixel của Bom đó không.
+                          // Sử dụng tọa độ pixel HIỆN TẠI của Player (this.pixelX, this.pixelY)
+                          double playerCurrentLeft = this.pixelX;
+                          double playerCurrentRight = this.pixelX + Sprite.SCALED_SIZE;
+                          double playerCurrentTop = this.pixelY;
+                          double playerCurrentBottom = this.pixelY + Sprite.SCALED_SIZE;
+
+                          double bombLeft = bomb.getPixelX();
+                          double bombRight = bomb.getPixelX() + Sprite.SCALED_SIZE;
+                          double bombTop = bomb.getPixelY();
+                          double bombBottom = bomb.getPixelY() + Sprite.SCALED_SIZE;
+
+                          // Kiểm tra xem hộp va chạm HIỆN TẠI của Player có chồng lấn với hộp va chạm của Bom không
+                          // Chúng ta cần một sự chồng lấn đáng kể để coi là "đang đứng trên Bom"
+                          // Kiểm tra đơn giản: Player's current bounding box overlaps with Bomb's bounding box
+                          boolean playerCurrentlyOverlapsBomb = playerCurrentRight > bombLeft && playerCurrentLeft < bombRight &&
+                                  playerCurrentBottom > bombTop && playerCurrentTop < bombBottom;
+
+                          // Alternative: Kiểm tra xem Player có đang ở trên cùng ô lưới với Bom không (làm tròn vị trí pixel hiện tại)
+                          // boolean playerOnSameGridAsBomb = (Math.round(this.pixelX / Sprite.SCALED_SIZE) == bomb.getGridX() && Math.round(this.pixelY / Sprite.SCALED_SIZE) == bomb.getGridY());
+
+                          // Nếu Bom này là của Player VÀ Player đang nằm trong phạm vi pixel của Bom đó (tức là chồng lấn pixel)
+                          if (playerCurrentlyOverlapsBomb) {
+                              continue; // Bỏ qua phần còn lại của vòng lặp for với Bom này
+                          }
+                      }
+
+                      double checkedPlayerLeft = checkPixelX;
+                      double checkedPlayerRight = checkPixelX + Sprite.SCALED_SIZE;
+                      double checkedPlayerTop = checkPixelY;
+                      double checkedPlayerBottom = checkPixelY + Sprite.SCALED_SIZE;
+
+                      double bombLeft = bomb.getPixelX();
+                      double bombRight = bomb.getPixelX() + Sprite.SCALED_SIZE;
+                      double bombTop = bomb.getPixelY();
+                      double bombBottom = bomb.getPixelY() + Sprite.SCALED_SIZE;
+
+                      // Logic kiểm tra chồng lấn giữa hai hình hộp tại vị trí kiểm tra
+                      boolean overlapAtCheckedPosition = checkedPlayerRight > bombLeft && checkedPlayerLeft < bombRight &&
+                              checkedPlayerBottom > bombTop && checkedPlayerTop < bombBottom;
+
+
+                      if (overlapAtCheckedPosition) {
+                          // Va chạm chồng lấn với một quả Bom được phát hiện tại vị trí kiểm tra.
+                          // Đây có phải là va chạm làm vật cản (nghĩa là Player bị chặn lại) không?
+                          // Bom làm vật cản NẾU Player KHÔNG có khả năng Đá Bom HOẶC Bom ĐANG BỊ ĐÁ.
+                          // Nếu Player có khả năng Đá Bom VÀ Bom CHƯA BỊ ĐÁ, va chạm này KHÔNG làm vật cản di chuyển.
+                          // Logic kích hoạt đá Bom sẽ được xử lý ở Bomberman.handle, không ở đây.
+                          // Tại đây, chúng ta CHỈ TRẢ VỀ true nếu nó LÀ VẬT CẢN CẦN CHẶN DI CHUYỂN.
+                          if (!this.canKickBomb || bomb.isKicked()) { // canKickBomb là thuộc tính Player, isKicked() là getter của Bomb
+                              // System.out.println("Player blocked by Bomb at (" + bomb.getGridX() + "," + bomb.getGridY() + ") at checked position. (Cannot kick or Bomb is kicking)"); // Log va chạm Bom chặn (có thể quá nhiều)
+                              return true; // Va chạm với Bom làm vật cản -> CHẶN
+                          }
+                          else{
+                              System.out.println("DEBUG checkCollision: Potential kick detected! Setting pending state.");
+                              this.kickableBombPending = bomb;
+                              this.kickDirectionPending = this.currentDirection;
+                          }
+                          // Nếu Player CÓ khả năng đá và Bom CHƯA bị đá, thì va chạm này KHÔNG chặn di chuyển (return false sẽ xảy ra sau vòng lặp)
+                      }
+                  }
+              }
+          }
+          return false; // Vị trí kiểm tra này có thể di chuyển đến -> KHÔNG CHẶN
+      }
+
+
+      public boolean collidesWith(Item item) {
+
+          // Kiểm tra xem Item có null hoặc không active không
+          if (item == null || !item.isActive()) {
+              return false;
+          }
+
+          double playerLeft = this.pixelX;
+          double playerRight = this.pixelX + Sprite.SCALED_SIZE;
+          double playerTop = this.pixelY;
+          double playerBottom = this.pixelY + Sprite.SCALED_SIZE;
+
+          double itemLeft = item.getPixelX();
+          double itemRight = item.getPixelX() + Sprite.SCALED_SIZE;
+          double itemTop = item.getPixelY();
+          double itemBottom = item.getPixelY() + Sprite.SCALED_SIZE;
+
+          return playerRight > itemLeft && playerLeft < itemRight &&
+                  playerBottom > itemTop && playerTop < itemBottom;
+      }
+      public boolean collidesWith(com.example.bomberman.entities.Bomb bomb) {
+          // if (!this.isAlive()) return false;
+
+          // Kiểm tra xem Bomb có null, không active hoặc đã nổ chưa
+          // Thường chỉ va chạm với bom đang đếm ngược.
+          if (bomb == null || !bomb.isActive() || bomb.isExploded()) { // isExploded() là getter trong Bomb
+              return false;
+          }
+
+          // --- Logic kiểm tra va chạm dạng hình hộp (Axis-Aligned Bounding Box - AABB) ---
+          // So sánh vị trí và kích thước của hộp va chạm Player và Bomb.
+          // Giả định cả hai đều có kích thước va chạm bằng Sprite.SCALED_SIZE.
+
+          double playerLeft = this.pixelX;
+          double playerRight = this.pixelX + Sprite.SCALED_SIZE;
+          double playerTop = this.pixelY;
+          double playerBottom = this.pixelY + Sprite.SCALED_SIZE;
+
+          double bombLeft = bomb.getPixelX();
+          double bombRight = bomb.getPixelX() + Sprite.SCALED_SIZE;
+          double bombTop = bomb.getPixelY();
+          double bombBottom = bomb.getPixelY() + Sprite.SCALED_SIZE;
+
+          // Kiểm tra chồng lấn giữa hai hình chữ nhật
+          return playerRight > bombLeft && playerLeft < bombRight &&
+                  playerBottom > bombTop && playerTop < bombBottom;
+      }
+
+
+
+      // --- Getters ---
+      // Cung cấp các phương thức để các lớp khác truy cập thông tin của Player
+      public double getPixelX() { return pixelX; }
+      public double getPixelY() { return pixelY; }
+      public int getGridX() { return gridX; }
+      public int getGridY() { return gridY; }
+      public Direction getCurrentDirection() { return currentDirection; }
+      public boolean isMoving() { return isMoving; }
+      public boolean isAlive() { return isAlive; } // Getter cho trạng thái sống
+      public int getLives() { return lives; } // Getter cho số mạng
+      public int getCurrentBombs() { return currentBombs; } // Getter cho số bom hiện có
+      public int getMaxBombs() { return maxBombs; } // Getter cho số bom tối đa
+      public int getFlameLength() { return flameLength; } // Getter cho độ dài lửa
+      public double getSpeed() { return speed; } // Getter cho tốc độ
+      public boolean isInvincible() {
+          return isInvincible;
+      }
+
+      /**
+       * Getter cho trạng thái đang trong animation chết tạm thời của Player.
+       */
+      public boolean isDyingTemporarily() {
+          return isDyingTemporarily;
+      }
+
+      // Phương thức được gọi bởi Vòng lặp Game để vẽ Player
+      public void render(GraphicsContext gc) {
+          if (!isAlive) {
+              return;
+          }
+
+          // --- Bước 1: Lấy hình ảnh hiện tại từ animation (như đã sửa trước đó) ---
+          Image currentImage = null;
+          if (currentAnimation != null) {
+              Sprite currentSpriteFrame = currentAnimation.getFrame(animationTimer);
+              if (currentSpriteFrame != null) {
+                  currentImage = currentSpriteFrame.getFxImage();
+              }
+          }
+          if (currentImage == null) { // Fallback
+              currentImage = Sprite.player_down.getFxImage();
+          }
+
+          // --- Bước 2: Xử lý vẽ và hiệu ứng bất tử ---
+          if (isInvincible) {
+              // Tính toán độ alpha dựa trên thời gian còn lại để tạo hiệu ứng mờ dần hoặc nhấp nháy alpha
+              // Ví dụ nhấp nháy alpha:
+              double alphaValue = 0.5 + 0.5 * Math.abs(Math.sin(invincibilityTimer * 5.0)); // Sin wave cho alpha từ 0.5 đến 1.0 (tần số 5.0)
+              // Ví dụ làm mờ đi:
+              // double alphaValue = 0.6; // Luôn hơi mờ khi bất tử
+
+              // Lưu lại alpha gốc
+              double originalAlpha = gc.getGlobalAlpha();
+              // Đặt alpha mới
+              gc.setGlobalAlpha(alphaValue);
+
+              // Vẽ Player với alpha mới
+              if (currentImage != null) {
+                  gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+              }
+
+              // Khôi phục alpha gốc !!! QUAN TRỌNG !!!
+              gc.setGlobalAlpha(originalAlpha);
+
+          } else {
+              // Không bất tử, vẽ Player bình thường (với alpha = 1.0)
+              if (currentImage != null) {
+                  gc.drawImage(currentImage, pixelX, pixelY + Bomberman.UI_PANEL_HEIGHT, Sprite.SCALED_SIZE, Sprite.SCALED_SIZE);
+              }
+          }
+      }
+      public Bomberman getGameManager() { return gameManager; }
+
+      public void takeDamage(int damage) {
+          if (!isAlive) return;
+          if (isDyingTemporarily) { // Không nhận sát thương khi đang trong animation chết
+              return;
+          }
+          if (isInvincible) return;
+          lives -= damage;
+          System.out.println("Player took damage. Remaining lives: " + lives); // Log
+          if (gameManager != null) {
+              gameManager.playPlayerDeadSound(); // << THÊM DÒNG NÀY
+          }
+          if (isAlive) { // Chỉ bắt đầu dying nếu isAlive còn true
+              System.out.println("takeDamage: Starting temporary dying process.");
+              startTemporaryDying();
+          }
+      }
+
+      private void die() {
+          if(!isAlive) return;
+          isAlive = false;
+          isMoving = false; // Dừng di chuyển
+          currentDirection = Direction.NONE; // Reset hướng
+          System.out.println("Player died."); // Log
+      }
+
+      public void respawn() {
+          this.gridX = this.initialGridX;
+          this.gridY = this.initialGridY;
+          this.pixelX = this.initialGridX * Sprite.SCALED_SIZE;
+          this.pixelY = this.initialGridY * Sprite.SCALED_SIZE;
+
+          // Reset trạng thái di chuyển và animation
+          this.isMoving = false;
+          this.currentDirection = Direction.DOWN;
+          this.lastNonNoneDirection = Direction.DOWN; // Thêm dòng này để nhất quán
+          if (this.idleDownAnimation != null) { // Kiểm tra null
+              this.currentAnimation = this.idleDownAnimation;
+          }
+          if (gameManager != null) gameManager.stopPlayerWalkSound();
+          this.animationTimer = 0; // Reset timer animation
+
+          // Kích hoạt bất tử tạm thời sau khi hồi sinh
+          this.isInvincible = true;
+          this.invincibilityTimer = INVINCIBILITY_DURATION; // <<< ĐÃ SỬA LỖI TIMER
+          this.justRespawnedInvincibility = true;
+      }
+
+      private void startTemporaryDying() {
+          if (isDyingTemporarily) return; // Tránh gọi nhiều lần nếu có lỗi logic
+
+          isDyingTemporarily = true;   // Bật cờ
+          dyingAnimationTimer = 0;     // Reset timer cho animation chết
+          animationTimer = 0;          // Reset timer animation chung
+          currentAnimation = dyingAnimation; // Chuyển sang animation chết
+          isMoving = false;            // Ngừng di chuyển
+          currentDirection = Direction.NONE;
+          if (gameManager != null) gameManager.stopPlayerWalkSound();
+      }
+  }

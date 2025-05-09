@@ -90,8 +90,4 @@ public abstract class Entity {
         this.active = active;
     }
 
-    // TODO: Thêm các phương thức chung khác nếu cần (ví dụ: getBoundingBox() để lấy hộp va chạm)
-    // public Rectangle2D getBoundingBox() {
-    //     return new Rectangle2D(x, y, width, height);
-    // }
 }

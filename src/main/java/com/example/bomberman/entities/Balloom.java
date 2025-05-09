@@ -5,14 +5,13 @@ import com.example.bomberman.Map.Map;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
 
-import java.util.Random;
 
-// Lớp Balloom - Kẻ địch đơn giản nhất
+
 public class Balloom extends Enemy {
 
     // --- Hằng số cho Balloom ---
-    private static final double BALLOOM_SPEED = 50.0; // Tốc độ chậm hơn Oneal
-    private static final int BALLOOM_SCORE = 100;   // Điểm thấp hơn Oneal
+    private static final double BALLOOM_SPEED = 50.0;
+    private static final int BALLOOM_SCORE = 100;
     // Xác suất đổi hướng ngẫu nhiên mỗi frame, ngay cả khi không bị chặn
     private static final double RANDOM_CHANGE_PROBABILITY = 0.005; // Ví dụ: 0.5% cơ hội mỗi frame
 
@@ -35,16 +34,8 @@ public class Balloom extends Enemy {
                 Sprite.mob_dead2); // Có thể dùng 3 sprite mob_dead1-3
 
         // Animation ban đầu được đặt bởi setRandomDirection() trong Enemy constructor
-        // currentAnimation = walkLeftAnimation; // Không cần đặt ở đây nếu Enemy constructor gọi setRandomDirection()
     }
 
-    /**
-     * Override phương thức tính toán nước đi cho Balloom.
-     * Logic của Balloom:
-     * 1. Nếu nó không di chuyển (vừa bị chặn hoặc mới bắt đầu), nó chọn hướng ngẫu nhiên khả thi.
-     * 2. Nếu nó đang di chuyển, có một xác suất nhỏ để nó tự đổi hướng ngẫu nhiên.
-     *    Nếu không đổi hướng ngẫu nhiên, nó sẽ tiếp tục đi theo hướng hiện tại.
-     */
     @Override
     protected void calculateNextMove() {
         // Nếu Balloom không di chuyển (vừa bị chặn hoặc vừa spawn)
@@ -52,23 +43,16 @@ public class Balloom extends Enemy {
             // Gọi hàm setRandomDirection của lớp Enemy. Hàm này đã được cải tiến để
             // chọn một hướng ngẫu nhiên mà CÓ THỂ đi được (không bị chặn ngay lập tức).
             setRandomDirection();
-            // System.out.println("BALLOOM DEBUG: Not moving, called setRandomDirection. New direction: " + currentDirection); // Log
         }
-        // Nếu đang di chuyển (isMoving = true)
+
         else {
             // Thêm xác suất đổi hướng ngẫu nhiên ngay cả khi đang đi
             if (random.nextDouble() < RANDOM_CHANGE_PROBABILITY) {
-                //System.out.println("BALLOOM DEBUG: Randomly changing direction while moving."); // Log
                 setRandomDirection(); // Chọn hướng ngẫu nhiên mới (nó sẽ chọn hướng đi được)
             }
-            // Nếu không đổi hướng ngẫu nhiên, nó sẽ tiếp tục đi theo currentDirection
-            // Việc xử lý khi bị chặn sẽ nằm trong phương thức move() và handleBlockedMovement()
+
         }
-        // Note: currentDirection và isMoving đã được set bởi setRandomDirection()
-        // hoặc giữ nguyên từ frame trước. move() sẽ sử dụng các giá trị này.
+
     }
 
-    // Balloom không cần override các phương thức khác như move(), checkMovementCollision(), die(), render()
-    // vì nó sử dụng trực tiếp các phương thức đã được triển khai (và cải tiến) trong lớp Enemy.
-    // isObstacle() của Enemy base class là đủ cho Balloom.
 }

@@ -12,7 +12,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 
-import java.util.List; // Import List
+import java.util.List;
 
 
 public class GameOverController implements SceneController {
@@ -52,11 +52,11 @@ public class GameOverController implements SceneController {
     @Override
     public void render(GraphicsContext gc) {
         // --- Lấy tài nguyên từ Bomberman ---
-        Image lastScreenSnapshot = bomberman.getLastScreenSnapshot(); // Cần getter
-        List<Particle> particles = bomberman.getParticles(); // Cần getter
-        Animation playerDeadAnimation = bomberman.getPlayerDeadAnimation(); // Cần getter
-        Font gameOverFont = bomberman.getGameOverFont(); // Cần getter
-        Font uiFont = bomberman.getUiFont(); // Cần getter
+        Image lastScreenSnapshot = bomberman.getLastScreenSnapshot();
+        List<Particle> particles = bomberman.getParticles();
+        Animation playerDeadAnimation = bomberman.getPlayerDeadAnimation();
+        Font gameOverFont = bomberman.getGameOverFont();
+        Font uiFont = bomberman.getUiFont();
         double canvasWidth = bomberman.getCanvasWidth();
         double canvasHeight = bomberman.getCanvasHeight();
 

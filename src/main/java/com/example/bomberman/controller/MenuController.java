@@ -157,6 +157,6 @@ public class MenuController implements SceneController {
         isMusicOn = !isMusicOn;
         System.out.println("Music toggled: " + isMusicOn);
         bomberman.setMusicOn(isMusicOn); // Cần phương thức này trong Bomberman để quản lý nhạc
-        // TODO: Thêm logic bật/tắt nhạc thực tế ở đây
+
     }
 }

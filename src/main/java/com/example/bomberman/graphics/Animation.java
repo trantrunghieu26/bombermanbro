@@ -1,6 +1,6 @@
 package com.example.bomberman.graphics;
 
-import javafx.scene.image.Image; // Import Image
+
 
 // Lớp quản lý chuỗi các Sprite để tạo Animation
 public class Animation {
@@ -71,5 +71,4 @@ public class Animation {
         return totalDuration;
     }
 
-    // TODO: Các phương thức khác nếu cần
 }
