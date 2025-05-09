@@ -5,7 +5,10 @@ Trong bài tập lớn này, nhiệm vụ của bạn là viết một phiên b�
 
 
 Bạn có thể sử dụng mã nguồn tại repository này để phát triển hoặc tự phát triển từ đầu.
-
+# Thành viên nhóm
+- 24022330-Trần Trung Hiếu(nhóm trường)
+- 24022348-Hà Huy Hưng
+- 24022492-Nguyễn Anh VŨ
 ## Mô tả về các đối tượng trong trò chơi
 Nếu bạn đã từng chơi Bomberman, bạn sẽ cảm thấy quen thuộc với những đối tượng này. Chúng được được chia làm hai loại chính là nhóm đối tượng động (*Bomber*, *Enemy*, *Bomb*) và nhóm đối tượng tĩnh (*Grass*, *Wall*, *Brick*, *Door*, *Item*).
 
