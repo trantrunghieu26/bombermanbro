@@ -39,7 +39,7 @@ public class Bomberman extends Application {
     // =========================================================================
     public static final int UI_PANEL_HEIGHT = 32;
     private static final double LEVEL_DURATION_SECONDS = 200.0; // Giá trị gốc
-    private final int MAX_LEVEL = 10;
+    private final int MAX_LEVEL = 5;
     // Các hằng số animation có thể giữ ở đây hoặc chuyển vào Controller tương ứng
     // private final double SCORE_ANIMATION_DURATION = 1.5;
     // private final double GAMEOVER_TEXT_FADE_IN_DURATION = 0.8;
