@@ -107,5 +107,4 @@ Chọn ít nhất một trong các tính năng sau để mở rộng game:
 *   **Tối ưu hoá hiệu suất:** Tìm các điểm có thể tối ưu, ví dụ:
     *   Dùng thuật toán tìm đường tốt hơn cho Oneal (A\*, BFS, DFS...)
     *   Tối ưu việc render các đối tượng.
-
-
+    *   sơ đồ lớp uml:- ![](res/anhmini/uml.png)  
