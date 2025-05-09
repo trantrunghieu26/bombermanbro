@@ -618,10 +618,6 @@ public class Bomberman extends Application {
                 Object owner = bomb.getOwner();
                 if (owner instanceof Player) {
                     ((Player) owner).increaseBombCount();
-                } else if (owner instanceof Doll) { // Hoặc nếu bạn dùng owner = null cho bom của Doll
-                    ((Doll) owner).enemyBombExploded();
-                } else if (owner == null) {
-
                 }
             }
         }

@@ -316,7 +316,7 @@ public abstract class Enemy extends Entity { // Kế thừa từ Entity
         // Buffer va chạm. Giá trị này quan trọng để Enemy không bị dính vào góc hẹp.
         // Thường nên nhỏ hơn Sprite.SCALED_SIZE / 2.0.
         // Điều chỉnh giá trị này để tìm sự cân bằng.
-        double buffer =1.0;
+        double buffer =0.5;
 
         // Tính toán tọa độ các điểm kiểm tra bên trong hộp va chạm dự kiến
         // Kiểm tra các điểm nằm bên trong (không sát biên) hộp va chạm

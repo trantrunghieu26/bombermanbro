@@ -1,208 +1,148 @@
 package com.example.bomberman.entities;
 import com.example.bomberman.Bomberman;
 import com.example.bomberman.Map.Map;
+// Không cần import Tile, TileType ở đây nữa vì không override isObstacle
+// import com.example.bomberman.Map.Tile;
+// import com.example.bomberman.Map.TileType;
 import com.example.bomberman.graphics.Animation;
 import com.example.bomberman.graphics.Sprite;
 
-import java.util.*;
+import java.util.*; // Import Random và List
+import java.lang.Math; // Import Math cho abs (được dùng trong getDirectionTowards)
+
 
 public class Oneal extends Enemy {
 
-    private static final double ONEAL_SPEED = 75.0; // Tốc độ của Oneal (nhanh hơn Balloom?)
+    private static final double ONEAL_SPEED = 60.0; // Tốc độ của Oneal
     private static final int ONEAL_SCORE = 200;    // Điểm của Oneal
-    private static final double BFS_UPDATE_INTERVAL = 1.0; // Chạy BFS mỗi 0.5 giây (điều chỉnh)
 
-    private double bfsTimer = 0; // Timer để kiểm soát tần suất chạy BFS
-    private Queue<Direction> currentPath = new LinkedList<>(); // Hàng đợi lưu đường đi (hoặc chỉ cần hướng tiếp theo)
-    private Direction nextBFSDirection = Direction.NONE; // Hướng đi được tính bởi BFS
+    // Xác suất đổi hướng ngẫu nhiên khi đang di chuyển (để có hành vi "lúc lắc" như Ghost)
+    private static final double RANDOM_CHANGE_PROBABILITY = 0.01; // Ví dụ: 1% cơ hội mỗi frame để đổi hướng
 
-    // Lớp nội bộ để lưu trữ Node cho BFS
-    private static class Node {
-        int x, y;
-        Direction cameFromDirection; // Hướng đi để đến được node này TỪ node cha
-        Node parent; // Lưu node cha để dò lại đường đi (nếu cần đầy đủ đường đi)
 
-        Node(int x, int y, Direction dir, Node parent) {
-            this.x = x;
-            this.y = y;
-            this.cameFromDirection = dir;
-            this.parent = parent;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Node node = (Node) o;
-            return x == node.x && y == node.y;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(x, y);
-        }
-    }
+    // Không còn các thuộc tính liên quan đến BFS/pathfinding phức tạp
 
 
     public Oneal(int startGridX, int startGridY, Map map, Bomberman gameManager) {
         super(startGridX, startGridY, ONEAL_SPEED, ONEAL_SCORE, map, gameManager);
 
         // --- Khởi tạo Animations cho Oneal ---
-        double frameDuration = 0.2; // Thời gian frame (điều chỉnh)
+        // frameDuration này nên được điều chỉnh để phù hợp với ONEAL_SPEED = 75.0.
+        double frameDuration = 0.2; // Có thể thử 0.18, 0.15... tùy cảm giác
         walkLeftAnimation = new Animation(frameDuration, true, Sprite.oneal_left1, Sprite.oneal_left2, Sprite.oneal_left3);
         walkRightAnimation = new Animation(frameDuration, true, Sprite.oneal_right1, Sprite.oneal_right2, Sprite.oneal_right3);
         // Animation chết dùng chung mob_dead hoặc oneal_dead
-        deadAnimation = new Animation(TIME_TO_DIE / 3.0, false, Sprite.oneal_dead, Sprite.mob_dead1, Sprite.mob_dead2, Sprite.mob_dead3);
+        deadAnimation = new Animation(TIME_TO_DIE / 4.0, false, // Sử dụng 4 frame cho đồng nhất với Doll
+                Sprite.oneal_dead,
+                Sprite.mob_dead1,
+                Sprite.mob_dead2,
+                Sprite.mob_dead3);
 
-        // Animation ban đầu
-        currentAnimation = walkLeftAnimation; // Hoặc walkRightAnimation tùy hướng ban đầu
+        // Animation ban đầu được đặt bởi setRandomDirection() trong Enemy constructor
+        // sau khi super() được gọi. setRandomDirection() sẽ sử dụng isObstacle() mặc định của Enemy.
     }
 
-    // --- Override phương thức tính toán nước đi ---
+    /**
+     * Override phương thức tính toán nước đi cho Oneal.
+     * Logic tương tự Ghost:
+     * - Nếu Player còn sống, cố gắng đi thẳng đến Player.
+     * - Nếu Player chết hoặc hướng thẳng bị chặn bởi vật cản (WALL/BRICK/BOMB), chuyển sang di chuyển ngẫu nhiên.
+     * - Vẫn sử dụng isObstacle() mặc định của Enemy (chặn WALL, BRICK, BOMB).
+     */
     @Override
     protected void calculateNextMove() {
-        // Chỉ tính toán lại đường đi bằng BFS sau một khoảng thời gian nhất định
-        if (bfsTimer <= 0) {
-            findPathToPlayer(); // Chạy BFS để tìm hướng mới
-            bfsTimer = BFS_UPDATE_INTERVAL; // Reset timer
+        Player player = gameManager.getPlayer();
+
+        // 1. Nếu Player tồn tại và còn sống
+        if (player != null && player.isAlive()) {
+            Direction dirToPlayer = getDirectionTowards(player.getGridX(), player.getGridY());
+
+            // Nếu có hướng đến Player VÀ có thể đi bước đầu tiên theo hướng đó (không bị chặn bởi WALL/BRICK/BOMB)
+            // canMoveTowards() sử dụng checkMovementCollision(), checkMovementCollision() gọi isObstacle().
+            // Oneal giờ sử dụng isObstacle() mặc định của Enemy, chặn WALL, BRICK, BOMB.
+            if (dirToPlayer != Direction.NONE && canMoveTowards(dirToPlayer)) {
+                //System.out.println("ONEAL DEBUG: Chasing player. Direction: " + dirToPlayer); // Log
+                currentDirection = dirToPlayer; // Đặt hướng di chuyển là hướng thẳng đến Player
+                isMoving = true;
+                // updateAnimationForDirection(currentDirection); // Animation được cập nhật ở move()
+                return; // Đã quyết định hành động (đuổi theo)
+            }
         }
 
-        // Luôn đặt hướng hiện tại theo kết quả BFS gần nhất
-        if (nextBFSDirection != Direction.NONE) {
-            currentDirection = nextBFSDirection;
-            isMoving = true;
-            // Cập nhật animation dựa trên hướng BFS
-            if (nextBFSDirection != Direction.NONE) {
-                currentDirection = nextBFSDirection;
-                isMoving = true;
-                // Cập nhật animation nếu cần (có thể đưa vào hàm riêng hoặc move())
-                updateAnimationForDirection(currentDirection); // Gọi hàm helper
-            } else {
-                // << SỬA Ở ĐÂY >>
-                // Nếu BFS không tìm thấy đường, HOẶC nếu hướng hiện tại là NONE (vừa bị chặn xong)
-                // thì chọn hướng ngẫu nhiên thông minh
-                if (!isMoving || currentDirection == Direction.NONE) {
-                    setRandomDirection(); // Gọi hàm setRandomDirection() của lớp Enemy (sẽ được cải tiến)
-                }
-            }
+        // 2. Nếu không đuổi được Player (Player chết, hoặc hướng đến Player bị chặn bởi vật cản)
+        // HOẶC nếu nó đang di chuyển rồi (isMoving=true), thêm xác suất đổi hướng ngẫu nhiên giống Ghost.
+        // Nếu !isMoving (vừa bị chặn), nó sẽ LUÔN gọi setRandomDirection() ở đây.
+        // setRandomDirection() sẽ chọn hướng ngẫu nhiên khả thi (sẽ sử dụng isObstacle() mặc định của Enemy).
+        if (!isMoving || random.nextDouble() < RANDOM_CHANGE_PROBABILITY) {
+            //System.out.println("ONEAL DEBUG: Chasing failed or random chance. Calling setRandomDirection."); // Log
+            setRandomDirection();
+        }
+        // Nếu đang di chuyển và không đổi hướng ngẫu nhiên, nó sẽ tiếp tục đi theo currentDirection
+        // Việc xử lý khi bị chặn sẽ nằm trong phương thức move() và handleBlockedMovement() của lớp Enemy.
+
+        // Cập nhật animation dựa trên currentDirection cuối cùng được quyết định trong calculateNextMove
+        // Đặt ở đây để đảm bảo animation luôn khớp với hướng được chọn.
+        if (currentDirection != Direction.NONE) {
+            updateAnimationForDirection(currentDirection);
+        } else {
+            updateAnimationForDirection(Direction.NONE); // Chuyển sang animation đứng yên nếu currentDirection là NONE
         }
     }
 
+    // Helper lấy hướng trực tiếp đến mục tiêu (copy từ Ghost/phiên bản Oneal trước)
+    protected Direction getDirectionTowards(int targetGridX, int targetGridY) {
+        int dx = targetGridX - this.gridX;
+        int dy = targetGridY - this.gridY;
+
+        // Ưu tiên di chuyển theo trục có khoảng cách lớn hơn để nhanh chóng đến gần
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return (dx > 0) ? Direction.RIGHT : Direction.LEFT;
+        } else if (Math.abs(dy) > 0) {
+            return (dy > 0) ? Direction.DOWN : Direction.UP;
+        }
+        return Direction.NONE; // Đang ở cùng ô hoặc dx=dy=0
+    }
+
+
+    // Phương thức update vẫn giữ nguyên, chỉ gọi update của lớp cha (Enemy).
     @Override
     public void update(double deltaTime) {
         if (!isAlive) {
             super.update(deltaTime); // Xử lý animation chết
             return;
         }
-        // Giảm timer BFS
-        bfsTimer -= deltaTime;
-        // Gọi update của lớp cha (bao gồm calculateNextMove và move)
+        // Gọi update của lớp cha (bao gồm calculateNextMove và move với substepping)
         super.update(deltaTime);
     }
 
 
-    // --- Thuật toán BFS để tìm đường đến Player ---
-    private void findPathToPlayer() {
-        nextBFSDirection = Direction.NONE; // Reset hướng trước khi tìm mới
-        Player player = gameManager.getPlayer();
-        if (player == null || !player.isAlive()) {
-            //System.out.println("Oneal BFS: Player not found or dead.");
-            return; // Không tìm đường nếu không có Player hoặc Player đã chết
-        }
-
-        int targetX = player.getGridX();
-        int targetY = player.getGridY();
-
-        // Hàng đợi cho BFS
-        Queue<Node> queue = new LinkedList<>();
-        // Set để lưu các ô đã thăm (dùng String "x,y" làm key)
-        Set<String> visited = new HashSet<>();
-        // Map để lưu node cha (nếu cần dò lại cả đường đi) - Tạm thời không cần thiết nếu chỉ lấy bước đầu
-        // Map<Node, Node> parentMap = new HashMap<>();
-
-        // Bắt đầu từ vị trí hiện tại của Oneal
-        Node startNode = new Node(this.gridX, this.gridY, Direction.NONE, null);
-        queue.add(startNode);
-        visited.add(startNode.x + "," + startNode.y);
-
-        Node targetNodeFound = null;
-
-        // Mảng tiện ích cho việc duyệt các ô lân cận (Lên, Xuống, Trái, Phải)
-        int[] dx = {0, 0, -1, 1};
-        int[] dy = {-1, 1, 0, 0};
-        Direction[] directions = {Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT};
-
-        while (!queue.isEmpty()) {
-            Node currentNode = queue.poll();
-
-            // Nếu tìm thấy Player
-            if (currentNode.x == targetX && currentNode.y == targetY) {
-                targetNodeFound = currentNode;
-                //System.out.println("Oneal BFS: Path found!");
-                break; // Thoát vòng lặp vì đã đến đích
-            }
-
-            // Duyệt các ô lân cận
-            for (int i = 0; i < 4; i++) {
-                int nextX = currentNode.x + dx[i];
-                int nextY = currentNode.y + dy[i];
-                Direction directionToNext = directions[i];
-                String nextKey = nextX + "," + nextY;
-
-                // Kiểm tra xem ô lân cận có hợp lệ và chưa được thăm không
-                if (isValidAndWalkable(nextX, nextY) && !visited.contains(nextKey)) {
-                    visited.add(nextKey);
-                    Node neighborNode = new Node(nextX, nextY, directionToNext, currentNode); // Lưu node cha và hướng đi
-                    queue.add(neighborNode);
-                    // parentMap.put(neighborNode, currentNode); // Nếu cần lưu cha
-                }
-            }
-        }
-
-        // --- Lấy hướng đi đầu tiên từ đường đi đã tìm được ---
-        if (targetNodeFound != null) {
-            Node stepNode = targetNodeFound;
-            // Dò ngược về node ngay sau node bắt đầu để tìm hướng đi đầu tiên
-            while (stepNode.parent != null && stepNode.parent != startNode) {
-                stepNode = stepNode.parent;
-            }
-            // stepNode bây giờ là node đầu tiên sau startNode trên đường đi ngắn nhất
-            if (stepNode != startNode) { // Đảm bảo target không phải là start
-                nextBFSDirection = stepNode.cameFromDirection; // Lấy hướng đã dùng để ĐẾN được node này
-                //System.out.println("Oneal BFS: Next move direction: " + nextBFSDirection);
-            } else {
-                //System.out.println("Oneal BFS: Target is the start node?");
-                nextBFSDirection = Direction.NONE; // Đứng yên nếu đang ở trên Player
-            }
-        } else {
-            //System.out.println("Oneal BFS: No path found to player.");
-            nextBFSDirection = Direction.NONE; // Không tìm thấy đường
-        }
+    /**
+     * isObstacle() KHÔNG được override ở đây.
+     * Oneal sẽ sử dụng phương thức isObstacle() mặc định từ lớp Enemy.
+     * isObstacle() mặc định coi WALL và BRICK là vật cản.
+     * Nó cũng coi BOMB là vật cản (nếu gameManager.isBombAtGrid() đúng).
+     */
+    // @Override // XÓA DÒNG NÀY VÀ PHƯƠNG THỨC ISOBSTACLE() DƯỚI ĐÂY
+    /*
+    protected boolean isObstacle(int gX, int gY) {
+        // ... logic từ phiên bản trước đã bỏ qua BRICK ...
+        // Logic này sẽ bị loại bỏ để dùng của lớp cha
     }
-
-    // --- Helper kiểm tra ô hợp lệ và có thể đi qua cho BFS ---
-    private boolean isValidAndWalkable(int gX, int gY) {
-        // Dùng lại hàm isObstacle nhưng đảo ngược kết quả
-        // isObstacle trả về true NẾU LÀ vật cản
-        return !isObstacle(gX, gY);
-    }
-    public void clearPath() {
-        currentPath.clear(); // clear() xóa tất cả phần tử khỏi Queue
-    }
-    public void consumeNextPathDirection() {
-        if (!currentPath.isEmpty()) {
-            currentPath.poll(); // poll() lấy và xóa phần tử đầu tiên
-        }
-    }
-    public boolean isPathEmpty() {
-        return currentPath.isEmpty();
-    }
-    public Direction peekNextPathDirection() {
-        if (!currentPath.isEmpty()) {
-            return currentPath.peek(); // peek() lấy phần tử đầu tiên mà không xóa
-        }
-        return Direction.NONE; // Trả về NONE nếu không có path
-    }
+    */
 
 
+    // Các phương thức và thuộc tính BFS không còn cần thiết đã bị xóa.
+    // Các phương thức checkMovementCollision, handleBlockedMovement, setRandomDirection
+    // được kế thừa từ lớp Enemy và sẽ sử dụng isObstacle() mặc định.
+    // render() và die() sử dụng logic chung của lớp Enemy.
+    // updateGridPosition() cũng sử dụng logic chung của Entity/Enemy.
+
+    // Thêm getter nếu cần cho các lớp khác
+    public double getSpeed() { return speed; }
+    public Direction getCurrentDirection() { return currentDirection; }
+    public boolean isMoving() { return isMoving; }
+    // Getter cho cờ active từ Entity
+    // public boolean isActive() { return active; } // Đã có trong Entity
+    // Getter cho trạng thái sống game play
+    // public boolean isAlive() { return isAlive; } // Đã có trong Entity
 }
